@@ -2,6 +2,11 @@ name: Build and Push Docker Image
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '30 0 3 * *'  # Runs on the 3rd of every month at 00:30 UTC
+  pull_request:
+    branches:
+      - '**'  # Triggers on PRs to any branch
 
 jobs:
   build-and-push:
@@ -24,11 +29,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine if push is needed
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.user.login }}" == "renovate[bot]" ]]; then
+            echo "PUSH_IMAGE=false" >> $GITHUB_ENV
+          else
+            echo "PUSH_IMAGE=true" >> $GITHUB_ENV
+          fi
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: ${{ env.PUSH_IMAGE }}
           tags: |
             ghcr.io/${{ github.repository }}:${{ env.DATE_TAG }}
             ghcr.io/${{ github.repository }}:latest
