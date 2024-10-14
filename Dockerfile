@@ -1,6 +1,6 @@
 FROM fedora:latest
 
-LABEL org.opencontainers.image.descriptio="Simple container image just for create RPM repo."
+LABEL org.opencontainers.image.description="Simple container image just for create RPM repo."
 
 RUN dnf -y install createrepo_c jq wget rpm-sign gnupg git \
     && dnf clean all \
