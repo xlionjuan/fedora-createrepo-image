@@ -1,6 +1,9 @@
 name: main
 on:
   workflow_dispatch:
+  schedule:
+    # Every Saturday at 2AM UTC
+    - cron: "0 2 * * 6"
 
 permissions:
   contents: read
