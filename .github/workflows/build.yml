@@ -2,11 +2,11 @@ name: Build and Push Docker Image
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '30 0 3 * *'  # Runs on the 3rd of every month at 00:30 UTC
-  pull_request:
-    branches:
-      - '**'  # Triggers on PRs to any branch
+  #schedule:
+    #- cron: '30 0 3 * *'  # Runs on the 3rd of every month at 00:30 UTC
+  #pull_request:
+    #branches:
+      #- '**'  # Triggers on PRs to any branch
 
 jobs:
   build-and-push:

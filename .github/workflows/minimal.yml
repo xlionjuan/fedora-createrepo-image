@@ -1,0 +1,16 @@
+name: mininal
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: build
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      image_name: ${{ github.repository }}-minimal
+      path: minimal
+      push_to_ghcr: true
