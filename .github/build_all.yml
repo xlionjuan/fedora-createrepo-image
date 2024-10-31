@@ -1,4 +1,4 @@
-name: Reusable Build and Push
+name: Build all
 on:
   workflow_dispatch:
 
