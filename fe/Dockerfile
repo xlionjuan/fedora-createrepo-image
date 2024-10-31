@@ -4,4 +4,5 @@ LABEL org.opencontainers.image.description="Simple container image just for crea
 
 RUN dnf -y install createrepo_c reprepro dpkg jq wget rpm-sign gnupg git \
     --setopt=install_weak_deps=False \
+    --setopt=keepcache=True \
     && rm -rf /var/log/dnf5.log
