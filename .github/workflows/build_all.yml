@@ -5,7 +5,7 @@ on:
 
 env:
   DNF_CACHE_PATH: /var/cache/libdnf5
-  HOST_DNF_CACHE_PATH: libdnf5
+  HOST_DNF_CACHE_PATH: ~/libdnf5
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
