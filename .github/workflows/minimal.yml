@@ -1,9 +1,9 @@
 name: Build minimal imege
 on:
   workflow_dispatch:
-  schedule:
+  #schedule:
     # Every Saturday at 2AM UTC
-    - cron: "0 2 * * 6"
+    #- cron: "0 2 * * 6"
 
 permissions:
   contents: read
