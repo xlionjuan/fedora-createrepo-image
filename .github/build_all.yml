@@ -1,0 +1,124 @@
+name: Reusable Build and Push
+on:
+  workflow_dispatch:
+
+
+env:
+  DNF_CACHE_PATH: /var/cache/libdnf5
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # needed for signing the images with GitHub OIDC Token
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Mkdir for DNF Cache
+        run: mkdir -p ${{ env.DNF_CACHE_PATH }}
+
+      - name: Cache DNF Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DNF_CACHE_PATH }}
+          key: dnf-cache
+      
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Extract metadata for Docker (main)
+        id: meta-main
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}
+          flavor: |
+            latest=true
+          tags: |
+             type=raw,value={{date 'YYYYMMDD'}}
+
+      - name: Extract metadata for Docker (minimal)
+        id: meta-minimal
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}-minimal
+          flavor: |
+            latest=true
+          tags: |
+             type=raw,value={{date 'YYYYMMDD'}}
+
+      - name: Log in to ghcr.io
+        uses: redhat-actions/podman-login@v1
+        with:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+
+      - name: Buildah Action (main)
+        id: build-image-main
+        uses: redhat-actions/buildah-build@v2
+        with:
+          context: fe
+          containerfiles: fe/Dockerfile
+          tags: ${{ steps.meta-main.outputs.tags }}
+          oci: true
+          extra-args: |
+            --squash
+            -v ${{ env.DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
+
+      - name: Buildah Action (minimal)
+        id: build-image-minimal
+        uses: redhat-actions/buildah-build@v2
+        with:
+          context: minimal
+          containerfiles: minimal/Dockerfile
+          tags: ${{ steps.meta-minimal.outputs.tags }}
+          oci: true
+          extra-args: |
+            --squash
+            -v ${{ env.DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
+
+      - name: Push (main)
+        id: push-main
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image-main.outputs.image }}
+          tags: ${{ steps.build-image-main.outputs.tags }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push (minimal)
+        id: push-minimal
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image-minimal.outputs.image }}
+          tags: ${{ steps.build-image-minimal.outputs.tags }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign the images with GitHub OIDC Token (main)
+        env:
+          DIGEST: ${{ steps.push-main.outputs.digest }}
+          TAGS: ${{ steps.meta-main.outputs.tags }}
+        run: |
+          images=""
+          for tag in ${TAGS}; do
+            images+="${tag}@${DIGEST} "
+          done
+          cosign sign --yes ${images}
+
+      - name: Sign the images with GitHub OIDC Token (minimal)
+        env:
+          DIGEST: ${{ steps.push-minimal.outputs.digest }}
+          TAGS: ${{ steps.meta-minimal.outputs.tags }}
+        run: |
+          images=""
+          for tag in ${TAGS}; do
+            images+="${tag}@${DIGEST} "
+          done
+          cosign sign --yes ${images}
