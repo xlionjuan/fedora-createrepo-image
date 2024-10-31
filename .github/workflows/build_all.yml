@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Mkdir for DNF Cache
-        run: mkdir -p ${{ env.DNF_CACHE_PATH }}
+        run: sudo mkdir -p ${{ env.DNF_CACHE_PATH }} && sudo chmod -R 777 ${{ env.DNF_CACHE_PATH }}
 
       - name: Cache DNF Cache
         uses: actions/cache@v4
