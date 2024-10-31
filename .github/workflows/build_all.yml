@@ -37,7 +37,7 @@ jobs:
         id: meta-main
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}
+          images: ghcr.io/${{ github.repository }}
           flavor: |
             latest=true
           tags: |
@@ -47,7 +47,7 @@ jobs:
         id: meta-minimal
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}-minimal
+          images: ghcr.io/${{ github.repository }}-minimal
           flavor: |
             latest=true
           tags: |
