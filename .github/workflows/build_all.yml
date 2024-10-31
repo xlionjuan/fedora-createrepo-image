@@ -5,7 +5,7 @@ on:
 
 env:
   DNF_CACHE_PATH: /var/cache/libdnf5
-
+  HOST_DNF_CACHE_PATH: libdnf5
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -19,12 +19,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Mkdir for DNF Cache
-        run: sudo mkdir -p ${{ env.DNF_CACHE_PATH }} && sudo chmod -R 777 ${{ env.DNF_CACHE_PATH }}
+        run: mkdir -p ${{ env.HOST_DNF_CACHE_PATH }}
 
       - name: Cache DNF Cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.DNF_CACHE_PATH }}
+          path: ${{ env.HOST_DNF_CACHE_PATH }}
           key: dnf-cache
       
       - name: Install Cosign
@@ -67,7 +67,7 @@ jobs:
           oci: true
           extra-args: |
             --squash
-            -v ${{ env.DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
+            -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
 
       - name: Buildah Action (minimal)
         id: build-image-minimal
@@ -79,7 +79,7 @@ jobs:
           oci: true
           extra-args: |
             --squash
-            -v ${{ env.DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
+            -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
 
       - name: Push (main)
         id: push-main
