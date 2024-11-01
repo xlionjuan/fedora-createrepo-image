@@ -93,6 +93,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+          extra-args: |
+            --compression-format=zstd
 
       - name: Push (minimal)
         id: push-minimal
@@ -103,6 +105,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+          extra-args: |
+            --compression-format=zstd
 
       - name: Sign the images with GitHub OIDC Token (main)
         env:
