@@ -1,6 +1,6 @@
 # fedora-createrepo-image
 
-[![Build main image](https://github.com/xlionjuan/fedora-createrepo-image/actions/workflows/main.yml/badge.svg)](https://github.com/xlionjuan/fedora-createrepo-image/actions/workflows/main.yml) [![Build minimal image](https://github.com/xlionjuan/fedora-createrepo-image/actions/workflows/minimal.yml/badge.svg)](https://github.com/xlionjuan/fedora-createrepo-image/actions/workflows/minimal.yml)
+[![Build all](https://github.com/xlionjuan/fedora-createrepo-image/actions/workflows/build_all.yml/badge.svg)](https://github.com/xlionjuan/fedora-createrepo-image/actions/workflows/build_all.yml)
 
 Build very small Fedora based container image just for creating and building [RPM](https://github.com/xlionjuan/rustdesk-rpm-repo/tree/main/createrepo) and also [APT repo](https://github.com/xlionjuan/apt-repo-action).
 
