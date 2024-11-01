@@ -11,7 +11,7 @@ env:
   HOST_DNF_CACHE_PATH: /tmp/libdnf5
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
