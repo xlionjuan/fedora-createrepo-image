@@ -24,8 +24,8 @@ jobs:
       - name: Mkdir for DNF Cache
         run: mkdir -p ${{ env.HOST_DNF_CACHE_PATH }}
 
-      - name: Cache DNF Cache
-        uses: actions/cache@v4
+      - name: Restore DNF Cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
           key: dnf-cache
@@ -83,6 +83,12 @@ jobs:
           extra-args: |
             --squash
             -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
+     
+      - name: Save DNF Cache
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.HOST_DNF_CACHE_PATH }}
+          key: dnf-cache
 
       - name: Push (main)
         id: push-main
