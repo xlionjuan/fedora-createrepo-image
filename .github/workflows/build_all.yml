@@ -115,27 +115,27 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
-      - name: Sign the images with GitHub OIDC Token (main)
-        env:
-          DIGEST: ${{ steps.push-main.outputs.digest }}
-          TAGS: ${{ steps.meta-main.outputs.tags }}
-        run: |
-          images=""
-          for tag in ${TAGS}; do
-            images+="${tag}@${DIGEST} "
-          done
-          cosign sign --yes ${images}
+      # - name: Sign the images with GitHub OIDC Token (main)
+      #   env:
+      #     DIGEST: ${{ steps.push-main.outputs.digest }}
+      #     TAGS: ${{ steps.meta-main.outputs.tags }}
+      #   run: |
+      #     images=""
+      #     for tag in ${TAGS}; do
+      #       images+="${tag}@${DIGEST} "
+      #     done
+      #     cosign sign --yes ${images}
 
-      - name: Sign the images with GitHub OIDC Token (minimal)
-        env:
-          DIGEST: ${{ steps.push-minimal.outputs.digest }}
-          TAGS: ${{ steps.meta-minimal.outputs.tags }}
-        run: |
-          images=""
-          for tag in ${TAGS}; do
-            images+="${tag}@${DIGEST} "
-          done
-          cosign sign --yes ${images}
+      # - name: Sign the images with GitHub OIDC Token (minimal)
+      #   env:
+      #     DIGEST: ${{ steps.push-minimal.outputs.digest }}
+      #     TAGS: ${{ steps.meta-minimal.outputs.tags }}
+      #   run: |
+      #     images=""
+      #     for tag in ${TAGS}; do
+      #       images+="${tag}@${DIGEST} "
+      #     done
+      #     cosign sign --yes ${images}
 
       - name: Attest (main)
         uses: actions/attest-build-provenance@v1
