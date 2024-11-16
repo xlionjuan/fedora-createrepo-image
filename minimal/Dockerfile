@@ -2,7 +2,7 @@ FROM registry.fedoraproject.org/fedora-minimal:41
 
 LABEL org.opencontainers.image.description="Simple container image just for create RPM and APT repo."
 
-RUN microdnf -y install createrepo_c reprepro dpkg jq wget rpm-sign gnupg git \
+RUN microdnf -y install createrepo_c reprepro dpkg deb-reversion jq wget rpm-sign gnupg git \
     rpm-build binutils policycoreutils policycoreutils-python-utils selinux-policy-devel \
     --setopt=install_weak_deps=False \
     --setopt=keepcache=True \

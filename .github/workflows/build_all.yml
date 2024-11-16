@@ -1,6 +1,11 @@
 name: Build all
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/README.md'
   schedule:
       # Every Saturday at 2AM UTC
     - cron: "0 2 * * 6"
@@ -89,7 +94,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
-          key: dnf-cache
+          key: dnf-cache-${{ github.sha }}
 
       - name: Push (main)
         id: push-main
