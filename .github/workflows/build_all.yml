@@ -89,12 +89,18 @@ jobs:
           extra-args: |
             --squash
             -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
-     
+
+      - name: Get Date
+        id: get-date
+        shell: bash
+        run: |
+          echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
+
       - name: Save DNF Cache
         uses: actions/cache/save@v4
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
-          key: dnf-cache-${{ github.sha }}
+          key: dnf-cache-${{ steps.get-date.outputs.date }}
 
       - name: Push (main)
         id: push-main
