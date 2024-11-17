@@ -69,7 +69,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
 
-      - name: Buildah Action (main) (F${{ env.FEDORA_VERSION }})
+      - name: Buildah Action (main)
         id: build-image-main
         uses: redhat-actions/buildah-build@v2
         with:
@@ -81,7 +81,7 @@ jobs:
             --squash
             -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
 
-      - name: Buildah Action (minimal) (F${{ env.FEDORA_VERSION }})
+      - name: Buildah Action (minimal) 
         id: build-image-minimal
         uses: redhat-actions/buildah-build@v2
         with:
@@ -105,7 +105,7 @@ jobs:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
           key: dnf-cache-${{ steps.get-date.outputs.date }}
 
-      - name: Push (main) (F${{ env.FEDORA_VERSION }})
+      - name: Push (main)
         id: push-main
         uses: redhat-actions/push-to-registry@v2
         with:
@@ -117,7 +117,7 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
-      - name: Push (minimal) (F${{ env.FEDORA_VERSION }})
+      - name: Push (minimal)
         id: push-minimal
         uses: redhat-actions/push-to-registry@v2
         with:
