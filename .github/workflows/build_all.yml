@@ -12,8 +12,11 @@ on:
 
 
 env:
-  DNF_CACHE_PATH: /var/cache/libdnf5
-  HOST_DNF_CACHE_PATH: /tmp/libdnf5
+  #DNF_CACHE_PATH: /var/cache/libdnf5 # F41+
+  DNF_CACHE_PATH: /var/cache/libdnf # F40
+  HOST_DNF_CACHE_PATH: /tmp/libdnf5 # Any path is okay
+  FEDORA_VERSION: "40"
+
 jobs:
   build-and-push:
     runs-on: ubuntu-24.04
@@ -66,31 +69,31 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
 
-      - name: Buildah Action (main)
+      - name: Buildah Action (main) (F${{ env.FEDORA_VERSION }})
         id: build-image-main
         uses: redhat-actions/buildah-build@v2
         with:
           context: fe
-          containerfiles: fe/Dockerfile
+          containerfiles: fe/Dockerfile.${{ env.FEDORA_VERSION }}
           tags: ${{ steps.meta-main.outputs.tags }}
           oci: true
           extra-args: |
             --squash
             -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
 
-      - name: Buildah Action (minimal)
+      - name: Buildah Action (minimal) (F${{ env.FEDORA_VERSION }})
         id: build-image-minimal
         uses: redhat-actions/buildah-build@v2
         with:
           context: minimal
-          containerfiles: minimal/Dockerfile
+          containerfiles: minimal/Dockerfile.${{ env.FEDORA_VERSION }}
           tags: ${{ steps.meta-minimal.outputs.tags }}
           oci: true
           extra-args: |
             --squash
             -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
 
-      - name: Get Date
+      - name: Get Date for creating cache key
         id: get-date
         shell: bash
         run: |
@@ -102,7 +105,7 @@ jobs:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
           key: dnf-cache-${{ steps.get-date.outputs.date }}
 
-      - name: Push (main)
+      - name: Push (main) (F${{ env.FEDORA_VERSION }})
         id: push-main
         uses: redhat-actions/push-to-registry@v2
         with:
@@ -114,7 +117,7 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
-      - name: Push (minimal)
+      - name: Push (minimal) (F${{ env.FEDORA_VERSION }})
         id: push-minimal
         uses: redhat-actions/push-to-registry@v2
         with:

@@ -1,0 +1,18 @@
+FROM registry.fedoraproject.org/fedora-minimal:40
+
+LABEL org.opencontainers.image.description="Simple container image just for create RPM and APT repo."
+
+RUN microdnf -y install createrepo_c reprepro dpkg deb-reversion jq wget tree rpm-sign gnupg git \
+    rpm-build binutils policycoreutils policycoreutils-python-utils selinux-policy-devel \
+    --setopt=install_weak_deps=False \
+    --setopt=keepcache=True &&\
+    microdnf -y install ruby rubygem-json \
+    --setopt=keepcache=True \
+    --exclude=rubygem-rdoc &&\
+    rm -rf /var/log/dnf.log
+
+    # From the line of the rpm-build is the requirements of the SELinux config rpm builder 
+
+RUN gem update --system --no-document &&\
+    gem install fpm --no-document &&\
+    gem clean
