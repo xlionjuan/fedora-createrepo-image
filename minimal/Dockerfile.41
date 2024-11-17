@@ -9,7 +9,7 @@ RUN microdnf -y install createrepo_c reprepro dpkg deb-reversion jq wget tree rp
     microdnf -y install ruby rubygem-json \
     --setopt=keepcache=True \
     --exclude=rubygem-rdoc &&\
-    rm -rf /var/log/dnf5.log
+    rm -rf /var/log/dnf*.log /root/.cache
 
     # From the line of the rpm-build is the requirements of the SELinux config rpm builder 
 

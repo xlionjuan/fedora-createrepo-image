@@ -4,14 +4,15 @@ LABEL org.opencontainers.image.description="Simple container image just for crea
 
 # deb-reversion is in devscripts
 
-RUN dnf -y install createrepo_c reprepro dpkg devscripts jq wget tree rpm-sign gnupg git \
+RUN dnf install -y dnf5 --setopt=install_weak_deps=False &&\
+    dnf5 -y install createrepo_c reprepro dpkg devscripts jq wget tree rpm-sign gnupg git \
     rpm-build binutils policycoreutils policycoreutils-python-utils selinux-policy-devel \
     --setopt=install_weak_deps=False \
     --setopt=keepcache=True &&\
-    dnf -y install ruby rubygem-json \
+    dnf5 -y install ruby rubygem-json \
     --setopt=keepcache=True \
     --exclude=rubygem-rdoc &&\
-    rm -rf /var/log/dnf.log
+    rm -rf /var/log/dnf*.log /var/cache/dnf /root/.cache
 
     # From the line of the rpm-build is the requirements of the SELinux config rpm builder 
 
