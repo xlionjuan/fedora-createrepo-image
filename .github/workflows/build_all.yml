@@ -12,8 +12,7 @@ on:
 
 
 env:
-  #DNF_CACHE_PATH: /var/cache/libdnf5 # F41+
-  DNF_CACHE_PATH: /var/cache/libdnf # F40
+  DNF_CACHE_PATH: /var/cache/libdnf5 # F41+ and newer F40 with libdnf5
   HOST_DNF_CACHE_PATH: /tmp/libdnf5 # Any path is okay
   FEDORA_VERSION: "40"
 
