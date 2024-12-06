@@ -151,14 +151,14 @@ jobs:
           cosign sign --yes ${images}
 
       - name: Attest (main)
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v2
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.push-main.outputs.digest }}
           push-to-registry: true
 
       - name: Attest (minimal)
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v2
         with:
           subject-name: ghcr.io/${{ github.repository }}-minimal
           subject-digest: ${{ steps.push-minimal.outputs.digest }}
