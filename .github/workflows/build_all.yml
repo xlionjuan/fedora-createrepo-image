@@ -103,18 +103,13 @@ jobs:
           threshold=$((${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} * 1024))
           echo "Threshold size: ${threshold} KB; ${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} MB"
 
-          echo 'FOLDER_SIZE=$(du -sk ${{ env.HOST_DNF_CACHE_PATH }} | cut -f1)' >> $GITHUB_ENV && echo 'THRESHOLD=$((${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} * 1024))' >> $GITHUB_ENV # Make summary work
-          echo "### DNF Cache summary" >> $GITHUB_STEP_SUMMARY
-          echo '* Size: ${{ env.FOLDER_SIZE }} KB; $((${{ env.FOLDER_SIZE }} / 1024)) MB' >> $GITHUB_STEP_SUMMARY
-          echo '* Threshold size: ${{ env.THRESHOLD }} KB; ${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} MB' >> $GITHUB_STEP_SUMMARY
-
           if [ "$folder_size" -gt "$threshold" ]; then
             echo "Threshold size exceed, purging."
             rm -rf ${{ env.HOST_DNF_CACHE_PATH }}/*
-            echo '* Purging: true' >> $GITHUB_STEP_SUMMARY
+            echo '### DNF Cache purging: true' >> $GITHUB_STEP_SUMMARY
           else
             echo "Threshold size is not exceed."
-            echo '* Purging: false' >> $GITHUB_STEP_SUMMARY
+            echo '* ### DNF Cache purging: false' >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Get Date for creating cache key
