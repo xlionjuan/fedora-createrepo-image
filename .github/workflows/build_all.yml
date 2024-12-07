@@ -96,7 +96,7 @@ jobs:
       - name: Purge dnf5 cache if too big
         run: |
           # Folder size (KB)
-          folder_size=$(du -sk path_to_your_folder | cut -f1)
+          folder_size=$(du -sk ${{ env.HOST_DNF_CACHE_PATH }} | cut -f1)
           echo "Folder size: ${folder_size} KB"
   
           # 100MB = 100 * 1024 KB
