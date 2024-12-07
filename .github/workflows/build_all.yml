@@ -14,6 +14,7 @@ on:
 env:
   DNF_CACHE_PATH: /var/cache/libdnf5 # F41+ and newer F40 with libdnf5
   HOST_DNF_CACHE_PATH: /tmp/libdnf5 # Any path is okay
+  DNF_CACHE_PURGE_THRESHOLD_MB: 300
   FEDORA_VERSION: "40"
 
 jobs:
@@ -91,6 +92,23 @@ jobs:
           extra-args: |
             --squash
             -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
+
+      - name: Purge dnf5 cache if too big
+        run: |
+          # Folder size (KB)
+          folder_size=$(du -sk path_to_your_folder | cut -f1)
+          echo "Folder size: ${folder_size} KB"
+  
+          # 100MB = 100 * 1024 KB
+          threshold=$((${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} * 1024))
+          echo "Threshold size: ${threshold} KB; ${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} MB"
+
+          if [ "$folder_size" -gt "$threshold" ]; then
+            echo "Threshold size exceed, purging."
+            rm -rf ${{ env.HOST_DNF_CACHE_PATH }}/*
+          else
+            echo "Threshold size is not exceed."
+          fi
 
       - name: Get Date for creating cache key
         id: get-date
