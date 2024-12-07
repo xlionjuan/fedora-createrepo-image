@@ -103,9 +103,10 @@ jobs:
           threshold=$((${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} * 1024))
           echo "Threshold size: ${threshold} KB; ${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} MB"
 
+          echo 'FOLDER_SIZE=${folder_size}' >> $GITHUB_ENV && echo 'THRESHOLD=${threshold}' >> $GITHUB_ENV # Make summary work
           echo "### DNF Cache summary" >> $GITHUB_STEP_SUMMARY
-          echo '* Size: ${folder_size} KB; $(($folder_size /1024)) MB' >> $GITHUB_STEP_SUMMARY
-          echo '* Threshold size: ${threshold} KB; ${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} MB' >> $GITHUB_STEP_SUMMARY
+          echo '* Size: ${{ env.FOLDER_SIZE }} KB; $((${{ env.FOLDER_SIZE }} /1024)) MB' >> $GITHUB_STEP_SUMMARY
+          echo '* Threshold size: ${{ env.THRESHOLD }} KB; ${{ env.DNF_CACHE_PURGE_THRESHOLD_MB }} MB' >> $GITHUB_STEP_SUMMARY
 
           if [ "$folder_size" -gt "$threshold" ]; then
             echo "Threshold size exceed, purging."
