@@ -14,7 +14,7 @@ Build once a ~~month~~ week. (I bump to Fedora 41 early for testing dnf5 changes
 
 ## Installed packages
 
-Please refer to [Dockerfile](fe/Dockerfile).
+Please refer to Dockerfile.
 
 ## Tagging
 The latest will be `latest`, and a date (`yyyymmdd`) tag if you wanna specific environment or testing.
