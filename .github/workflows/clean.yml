@@ -1,0 +1,21 @@
+name: Cleanup Old Images
+on:
+  schedule:
+    - cron: "15 1 * * 4" # Runs at 01:15, only on Thursday. 
+  workflow_dispatch:
+
+jobs:
+  delete-older-than-30:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Delete Images Older Than 30 Days
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          packages: fedora-createrepo-image,fedora-createrepo-image-minimal
+          older-than: 30 days
+          delete-orphaned-images: true
+          keep-n-tagged: 7
+          keep-n-untagged: 7
