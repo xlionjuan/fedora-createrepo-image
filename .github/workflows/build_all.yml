@@ -15,7 +15,7 @@ env:
   DNF_CACHE_PATH: /var/cache/libdnf5 # F41+ and newer F40 with libdnf5
   HOST_DNF_CACHE_PATH: /tmp/libdnf5 # Any path is okay
   DNF_CACHE_PURGE_THRESHOLD_MB: 400
-  FEDORA_VERSION: "40"
+  FEDORA_VERSION: "41"
 
 jobs:
   build-and-push:
