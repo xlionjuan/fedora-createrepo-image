@@ -53,6 +53,7 @@ jobs:
              type=raw,value={{date 'YYYYMMDD'}}
 
       - name: Extract metadata for Docker (minimal)
+        if: false
         id: meta-minimal
         uses: docker/metadata-action@v5
         with:
@@ -82,6 +83,7 @@ jobs:
             -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
 
       - name: Buildah Action (minimal) 
+        if: false
         id: build-image-minimal
         uses: redhat-actions/buildah-build@v2
         with:
@@ -137,6 +139,7 @@ jobs:
             --compression-format=zstd
 
       - name: Push (minimal)
+        if: false
         id: push-minimal
         uses: redhat-actions/push-to-registry@v2
         with:
@@ -160,6 +163,7 @@ jobs:
           cosign sign --yes ${images}
 
       - name: Sign the images with GitHub OIDC Token (minimal)
+        if: false
         env:
           DIGEST: ${{ steps.push-minimal.outputs.digest }}
           TAGS: ${{ steps.meta-minimal.outputs.tags }}
@@ -178,6 +182,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest (minimal)
+        if: false
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ghcr.io/${{ github.repository }}-minimal
