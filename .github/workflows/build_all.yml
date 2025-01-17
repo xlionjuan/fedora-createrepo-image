@@ -170,13 +170,20 @@ jobs:
           push-to-registry: true
 
   link-container-tags:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     name: Link Container tags
     needs: build-and-push
     permissions:
       contents: read
       packages: write
     steps:
+      - name: Login ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create and push manifest (latest)
         uses: Noelware/docker-manifest-action@54262c97373814c17a990343f23cdfba180ff0cc # 0.4.2
         with:
