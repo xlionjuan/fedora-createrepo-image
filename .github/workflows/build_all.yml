@@ -189,7 +189,7 @@ jobs:
 
       - name: Create and push manifest (latest)
         id: manifest-latest
-        uses: Noelware/docker-manifest-action@54262c97373814c17a990343f23cdfba180ff0cc # 0.4.2
+        uses: Noelware/docker-manifest-action@a34eba526b9e4f02939cd3385b52f9cdef9bdf99 # Jan 17, 2025
         with:
           base-image: ghcr.io/${{ github.repository }}:latest
           extra-images: |
