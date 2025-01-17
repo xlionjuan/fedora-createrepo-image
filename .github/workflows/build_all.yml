@@ -75,7 +75,8 @@ jobs:
       - name: Fix permission or arm64 runner
         if: contains( matrix.job.name , 'arm64')
         run: |
-          mkdir -p /home/runneradmin/.config/containers/
+          whoami
+          sudo mkdir -p /home/runneradmin/.config/containers/
           sudo touch /home/runneradmin/.config/containers/storage.conf
           sudo chown -R runneradmin:runneradmin /home/runneradmin/
 
