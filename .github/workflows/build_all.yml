@@ -24,9 +24,6 @@ jobs:
           - { name: amd64, os: ubuntu-latest, pretty-name: Build and push amd64 image }
           - { name: arm64, os: ubuntu-24.04-arm, pretty-name: Build and push arm64 image }
     runs-on: ${{ matrix.job.os }}
-    outputs:
-      digest: ${{ steps.push-main.outputs.digest }}
-      tags: ${{ steps.build-image-main.outputs.tags }}
     name: ${{ matrix.job.pretty-name }}
     permissions:
       contents: read
@@ -181,7 +178,7 @@ jobs:
       contents: read
       packages: write
       id-token: write # needed for signing the images with GitHub OIDC Token
-      #attestations: write
+      attestations: write
     steps:
       - name: Login ghcr.io
         uses: docker/login-action@v3
@@ -189,12 +186,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Show job outputs
-        run: |
-          echo "Image digest: ${{ needs.build-and-push.outputs.digest }}"
-          echo "Tags output: ${{ needs.build-and-push.outputs.tags }}"
-          echo '${{ toJSON(needs.build-and-push.outputs) }}'
 
       - name: Create and push manifest (latest)
         uses: Noelware/docker-manifest-action@54262c97373814c17a990343f23cdfba180ff0cc # 0.4.2
@@ -212,6 +203,7 @@ jobs:
           echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
 
       - name: Create and push manifest (time)
+        id: manifest
         uses: Noelware/docker-manifest-action@54262c97373814c17a990343f23cdfba180ff0cc # 0.4.2
         with:
           base-image: ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}
@@ -223,7 +215,20 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.7.0
 
-      # gh attestation verify is broken
       - name: Sign the images with GitHub OIDC Token (Tag resign)
+        env:
+          DIGEST: ${{ steps.manifest.images }}
+          TAGS: ghcr.io/${{ github.repository }}:latest
         run: |
-          cosign sign --yes ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }} ghcr.io/${{ github.repository }}:latest
+          images=""
+          for tag in ${TAGS}; do
+            images+="${tag}@${DIGEST} "
+          done
+          cosign sign --yes ${images}
+
+      - name: Attest (Tag resign)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.manifest.images }}
+          push-to-registry: true
