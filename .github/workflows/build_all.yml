@@ -220,8 +220,8 @@ jobs:
         id: get-digest-only
         shell: bash
         run: |
-          echo "digest-latest=$( ${{ steps.manifest-latest.outputs.images }} | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
-          echo "digest-time=$( ${{ steps.manifest-time.outputs.images }} | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+          echo "digest-latest=$(echo '${{ steps.manifest-latest.outputs.images }}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+          echo "digest-time=$(echo '${{ steps.manifest-time.outputs.images }}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (latest)
         env:
