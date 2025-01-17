@@ -72,7 +72,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
 
-      - name: Fix permission or arm64 runner
+      - name: Fix permission on arm64 runner
         if: contains( matrix.job.name , 'arm64')
         run: |
           whoami
@@ -144,6 +144,13 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
+      - name: Login to for signing
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Sign the images with GitHub OIDC Token (main)
         env:
           DIGEST: ${{ steps.push-main.outputs.digest }}
@@ -153,7 +160,7 @@ jobs:
           for tag in ${TAGS}; do
             images+="${tag}@${DIGEST} "
           done
-          cosign sign --yes ${images} --registry-username='${{ github.actor }}' --registry-password='${{ secrets.GITHUB_TOKEN }}'
+          cosign sign --yes ${images}
 
       - name: Attest (main)
         uses: actions/attest-build-provenance@v2
