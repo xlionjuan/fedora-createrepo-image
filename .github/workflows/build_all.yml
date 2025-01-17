@@ -10,7 +10,6 @@ on:
       # Every Saturday at 2AM UTC
     - cron: "0 2 * * 6"
 
-
 env:
   DNF_CACHE_PATH: /var/cache/libdnf5 # F41+ and newer F40 with libdnf5
   HOST_DNF_CACHE_PATH: /tmp/libdnf5 # Any path is okay
@@ -19,7 +18,13 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        job:
+          - { name: amd64, os: ubuntu-latest, pretty-name: Build and push amd64 image }
+          - { name: arm64, os: ubuntu-24.04-arm, pretty-name: Build and push amd64 image }
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.pretty-name }}
     permissions:
       contents: read
       packages: write
@@ -30,6 +35,12 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v4
 
+      - name: Maximize build space
+        if: contains( matrix.name , 'arm64')
+        run: |
+          sudo apt-get update
+          sudo apt-get install podman buildah -y
+
       - name: Mkdir for DNF Cache
         run: mkdir -p ${{ env.HOST_DNF_CACHE_PATH }}
 
@@ -37,7 +48,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
-          key: dnf-cache
+          key: dnf-cache-${{ matrix.name }}
       
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.7.0
@@ -48,20 +59,10 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           flavor: |
-            latest=true
+            latest=false
           tags: |
-             type=raw,value={{date 'YYYYMMDD'}}
-
-      - name: Extract metadata for Docker (minimal)
-        if: false
-        id: meta-minimal
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}-minimal
-          flavor: |
-            latest=true
-          tags: |
-             type=raw,value={{date 'YYYYMMDD'}}
+             type=raw,value={{date 'YYYYMMDD'}}-${{ matrix.name }}
+             type=raw,value=latest-${{ matrix.name }}
 
       - name: Log in to ghcr.io
         uses: redhat-actions/podman-login@v1
@@ -77,19 +78,6 @@ jobs:
           context: fe
           containerfiles: fe/Dockerfile.${{ env.FEDORA_VERSION }}
           tags: ${{ steps.meta-main.outputs.tags }}
-          oci: true
-          extra-args: |
-            --squash
-            -v ${{ env.HOST_DNF_CACHE_PATH }}:${{ env.DNF_CACHE_PATH }}
-
-      - name: Buildah Action (minimal) 
-        if: false
-        id: build-image-minimal
-        uses: redhat-actions/buildah-build@v2
-        with:
-          context: minimal
-          containerfiles: minimal/Dockerfile.${{ env.FEDORA_VERSION }}
-          tags: ${{ steps.meta-minimal.outputs.tags }}
           oci: true
           extra-args: |
             --squash
@@ -124,7 +112,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
-          key: dnf-cache-${{ steps.get-date.outputs.date }}
+          key: dnf-cache-${{ matrix.name }}-${{ steps.get-date.outputs.date }}
 
       - name: Push (main)
         id: push-main
@@ -132,19 +120,6 @@ jobs:
         with:
           image: ${{ steps.build-image-main.outputs.image }}
           tags: ${{ steps.build-image-main.outputs.tags }}
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          extra-args: |
-            --compression-format=zstd
-
-      - name: Push (minimal)
-        if: false
-        id: push-minimal
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          image: ${{ steps.build-image-minimal.outputs.image }}
-          tags: ${{ steps.build-image-minimal.outputs.tags }}
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
@@ -162,18 +137,6 @@ jobs:
           done
           cosign sign --yes ${images}
 
-      - name: Sign the images with GitHub OIDC Token (minimal)
-        if: false
-        env:
-          DIGEST: ${{ steps.push-minimal.outputs.digest }}
-          TAGS: ${{ steps.meta-minimal.outputs.tags }}
-        run: |
-          images=""
-          for tag in ${TAGS}; do
-            images+="${tag}@${DIGEST} "
-          done
-          cosign sign --yes ${images}
-
       - name: Attest (main)
         uses: actions/attest-build-provenance@v2
         with:
@@ -181,10 +144,34 @@ jobs:
           subject-digest: ${{ steps.push-main.outputs.digest }}
           push-to-registry: true
 
-      - name: Attest (minimal)
-        if: false
-        uses: actions/attest-build-provenance@v2
+  link-container-tags:
+    runs-on: ubuntu-24.04-arm
+    name: Link Container tags
+    needs: build-and-push
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Create and push manifest (latest)
+        uses: Noelware/docker-manifest-action@54262c97373814c17a990343f23cdfba180ff0cc # 0.4.2
         with:
-          subject-name: ghcr.io/${{ github.repository }}-minimal
-          subject-digest: ${{ steps.push-minimal.outputs.digest }}
-          push-to-registry: true
+          base-image: ghcr.io/${{ github.repository }}:latest
+          extra-images: |
+            ghcr.io/${{ github.repository }}:latest-amd64,
+            ghcr.io/${{ github.repository }}:latest-arm64
+          push: true
+
+      - name: Get Date
+        id: get-date
+        shell: bash
+        run: |
+          echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
+
+      - name: Create and push manifest (time)
+        uses: Noelware/docker-manifest-action@54262c97373814c17a990343f23cdfba180ff0cc # 0.4.2
+        with:
+          base-image: ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}
+          extra-images: |
+            ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-amd64,
+            ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-arm64
+          push: true
