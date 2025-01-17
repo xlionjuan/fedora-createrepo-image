@@ -218,7 +218,7 @@ jobs:
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (latest)
         env:
-          IMAGES: ${{ steps.manifest-time.outputs.images }}
+          IMAGES: ${{ steps.manifest-latest.outputs.images }}
         run: |
           cosign sign --yes ${IMAGES}
 
