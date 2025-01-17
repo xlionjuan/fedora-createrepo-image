@@ -218,14 +218,9 @@ jobs:
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (latest)
         env:
-          DIGEST: ${{ steps.manifest-latest.outputs.images }}
-          TAGS: ghcr.io/${{ github.repository }}:latest
+          IMAGES: ${{ steps.manifest-time.outputs.images }}
         run: |
-          images=""
-          for tag in ${TAGS}; do
-            images+="${tag}@${DIGEST} "
-          done
-          cosign sign --yes ${images}
+          cosign sign --yes ${IMAGES}
 
       - name: Attest (Tag resign) (latest)
         uses: actions/attest-build-provenance@v2
@@ -236,14 +231,9 @@ jobs:
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (time)
         env:
-          DIGEST: ${{ steps.manifest-time.outputs.images }}
-          TAGS: ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}
+          IMAGES: ${{ steps.manifest-time.outputs.images }}
         run: |
-          images=""
-          for tag in ${TAGS}; do
-            images+="${tag}@${DIGEST} "
-          done
-          cosign sign --yes ${images}
+          cosign sign --yes ${IMAGES}
 
       - name: Attest (Tag resign) (time)
         uses: actions/attest-build-provenance@v2
