@@ -208,6 +208,9 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-arm64
           push: true
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
       # gh attestation verify is broken
       - name: Sign the images with GitHub OIDC Token (Tag resign)
         run: |
