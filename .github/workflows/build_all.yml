@@ -170,7 +170,7 @@ jobs:
           push-to-registry: true
 
   link-container-tags:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     name: Link Container tags
     needs: build-and-push
     permissions:
