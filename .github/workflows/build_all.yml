@@ -25,7 +25,7 @@ jobs:
           - { name: arm64, os: ubuntu-24.04-arm, pretty-name: Build and push arm64 image }
     runs-on: ${{ matrix.job.os }}
     outputs:
-      image: ${{ steps.build-image-main.outputs.image }}
+      digest: ${{ steps.push-main.outputs.digest }}
       tags: ${{ steps.build-image-main.outputs.tags }}
     name: ${{ matrix.job.pretty-name }}
     permissions:
@@ -192,8 +192,9 @@ jobs:
 
       - name: Show job outputs
         run: |
-          echo "Image output: ${{ needs.build-and-push.outputs.image }}"
+          echo "Image digest: ${{ needs.build-and-push.outputs.digest }}"
           echo "Tags output: ${{ needs.build-and-push.outputs.tags }}"
+          echo '${{ toJSON(needs.build-and-push.outputs) }}'
 
       - name: Create and push manifest (latest)
         uses: Noelware/docker-manifest-action@54262c97373814c17a990343f23cdfba180ff0cc # 0.4.2
