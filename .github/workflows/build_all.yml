@@ -78,7 +78,7 @@ jobs:
           whoami
           sudo mkdir -p /home/runneradmin/.config/containers/
           sudo touch /home/runneradmin/.config/containers/storage.conf
-          sudo chown -R runneradmin:runneradmin /home/runneradmin/
+          sudo chown -R runner:runner /home/runneradmin/
 
       # https://github.com/ublue-os/bluefin/blob/36c6eef3a61ebfb41edf9e4d1a4c86648c977506/.github/workflows/reusable-build.yml#L149-L153
       - name: Log in to ghcr.io (Using command) 
