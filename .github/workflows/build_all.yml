@@ -207,3 +207,8 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-amd64,
             ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-arm64
           push: true
+
+      # gh attestation verify is broken
+      - name: Sign the images with GitHub OIDC Token (Tag resign)
+        run: |
+          cosign sign --yes ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }} ghcr.io/${{ github.repository }}:latest
