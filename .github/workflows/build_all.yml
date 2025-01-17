@@ -236,7 +236,7 @@ jobs:
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (time)
         env:
-          DIGEST: ${{ steps.manifest-latest.outputs.images }}
+          DIGEST: ${{ steps.manifest-time.outputs.images }}
           TAGS: ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}
         run: |
           images=""
