@@ -64,14 +64,6 @@ jobs:
              type=raw,value={{date 'YYYYMMDD'}}-${{ matrix.job.name }}
              type=raw,value=latest-${{ matrix.job.name }}
 
-      - name: Log in to ghcr.io (Using Action)
-        uses: redhat-actions/podman-login@v1
-        if: false
-        with:
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: ghcr.io
-
       - name: Fix permission on arm64 runner
         if: contains( matrix.job.name , 'arm64')
         run: |
@@ -83,9 +75,17 @@ jobs:
           sudo cp arm64-workaround/storage.conf /home/runneradmin/.config/containers/storage.conf
           sudo chown -R runner:runner /home/runneradmin/
 
+      - name: Log in to ghcr.io (Using Action)
+        uses: redhat-actions/podman-login@v1
+        #if: false
+        with:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+
       # https://github.com/ublue-os/bluefin/blob/36c6eef3a61ebfb41edf9e4d1a4c86648c977506/.github/workflows/reusable-build.yml#L149-L153
       - name: Log in to ghcr.io (Using command) 
-        if: github.event_name != 'pull_request'
+        if: false
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
@@ -144,7 +144,7 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
-      - name: Login to for signing
+      - name: Login for signing
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
