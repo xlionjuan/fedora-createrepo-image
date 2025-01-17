@@ -146,6 +146,7 @@ jobs:
 
       - name: Login for signing
         uses: docker/login-action@v3
+        if: false
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
