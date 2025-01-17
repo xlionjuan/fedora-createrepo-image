@@ -216,6 +216,13 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.7.0
 
+      - name: "Image:Digest -> Digest"
+        id: get-digest-only
+        shell: bash
+        run: |
+          echo "digest-latest=$( ${{ steps.manifest-latest.outputs.images }} | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+          echo "digest-time=$( ${{ steps.manifest-time.outputs.images }} | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+
       - name: Sign the images with GitHub OIDC Token (Tag resign) (latest)
         env:
           IMAGES: ${{ steps.manifest-latest.outputs.images }}
@@ -226,7 +233,7 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ steps.manifest-latest.outputs.images }}
+          subject-digest: ${{ steps.get-digest-only.outputs.digest-latest }}
           push-to-registry: true
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (time)
@@ -239,5 +246,5 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ steps.manifest-time.outputs.images }}
+          subject-digest: ${{ steps.get-digest-only.outputs.digest-time }}
           push-to-registry: true
