@@ -205,9 +205,9 @@ jobs:
           echo "digest-latest=$(echo '${{ steps.manifest-latest.outputs.images }}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
           echo "digest-time=$(echo '${{ steps.manifest-time.outputs.images }}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
 
-      - name: Sign the images with GitHub OIDC Token (Tag resign) (latest)
+      - name: Sign the images with GitHub OIDC Token (Tag resign) (latest+time)
         env:
-          IMAGES: ${{ steps.manifest-latest.outputs.images }}
+          IMAGES: ${{ steps.manifest-latest.outputs.images }} ${{ steps.manifest-time.outputs.images }}
         run: |
           cosign sign --yes --recursive ${IMAGES}
 
@@ -219,6 +219,7 @@ jobs:
           push-to-registry: true
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (time)
+        if: false
         env:
           IMAGES: ${{ steps.manifest-time.outputs.images }}
         run: |
