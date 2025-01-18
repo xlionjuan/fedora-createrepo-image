@@ -64,18 +64,6 @@ jobs:
              type=raw,value={{date 'YYYYMMDD'}}-${{ matrix.job.name }}
              type=raw,value=latest-${{ matrix.job.name }}
 
-      - name: Fix permission on arm64 runner
-        #if: contains( matrix.job.name , 'arm64')
-        if: false
-        run: |
-          whoami
-          sudo loginctl enable-linger runner
-          sudo loginctl enable-linger runneradmin
-          sudo mkdir -p /home/runneradmin/.config/containers/
-          #sudo touch /home/runneradmin/.config/containers/storage.conf
-          sudo cp arm64-workaround/storage.conf /home/runneradmin/.config/containers/storage.conf
-          sudo chown -R runner:runner /home/runneradmin/
-
       - name: Log in to ghcr.io (Using Action)
         uses: redhat-actions/podman-login@v1
         #if: false
@@ -145,15 +133,8 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
-      - name: Login for signing
-        uses: docker/login-action@v3
-        if: false
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Sign the images with GitHub OIDC Token (main)
+        if: false
         env:
           DIGEST: ${{ steps.push-main.outputs.digest }}
           TAGS: ${{ steps.meta-main.outputs.tags }}
@@ -228,7 +209,7 @@ jobs:
         env:
           IMAGES: ${{ steps.manifest-latest.outputs.images }}
         run: |
-          cosign sign --yes ${IMAGES}
+          cosign sign --yes --recursive ${IMAGES}
 
       - name: Attest (Tag resign) (latest)
         uses: actions/attest-build-provenance@v2
@@ -241,7 +222,7 @@ jobs:
         env:
           IMAGES: ${{ steps.manifest-time.outputs.images }}
         run: |
-          cosign sign --yes ${IMAGES}
+          cosign sign --yes --recursive ${IMAGES}
 
       - name: Attest (Tag resign) (time)
         uses: actions/attest-build-provenance@v2
