@@ -206,6 +206,7 @@ jobs:
           echo "digest-time=$(echo '${{ steps.manifest-time.outputs.images }}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (latest+time)
+        if: false
         env:
           IMAGES: ${{ steps.manifest-latest.outputs.images }} ${{ steps.manifest-time.outputs.images }}
         run: |
@@ -219,7 +220,6 @@ jobs:
           push-to-registry: true
 
       - name: Sign the images with GitHub OIDC Token (Tag resign) (time)
-        if: false
         env:
           IMAGES: ${{ steps.manifest-time.outputs.images }}
         run: |
