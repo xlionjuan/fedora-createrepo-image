@@ -65,7 +65,8 @@ jobs:
              type=raw,value=latest-${{ matrix.job.name }}
 
       - name: Fix permission on arm64 runner
-        if: contains( matrix.job.name , 'arm64')
+        #if: contains( matrix.job.name , 'arm64')
+        if: false
         run: |
           whoami
           sudo loginctl enable-linger runner
