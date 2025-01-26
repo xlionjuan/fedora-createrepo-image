@@ -171,7 +171,7 @@ jobs:
 
       - name: Create and push manifest (latest)
         id: manifest-latest
-        uses: Noelware/docker-manifest-action@dabcf08de909963ac0db0d79554efe7366dc3664
+        uses: Noelware/docker-manifest-action@58feea6e97f7edb454571f323baeb10cb1507b2b
         with:
           base-image: ghcr.io/${{ github.repository }}:latest
           extra-images: |
@@ -187,7 +187,7 @@ jobs:
 
       - name: Create and push manifest (time)
         id: manifest-time
-        uses: Noelware/docker-manifest-action@dabcf08de909963ac0db0d79554efe7366dc3664
+        uses: Noelware/docker-manifest-action@58feea6e97f7edb454571f323baeb10cb1507b2b
         with:
           base-image: ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}
           extra-images: |
