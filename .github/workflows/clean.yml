@@ -11,7 +11,7 @@ jobs:
       packages: write
     steps:
       - name: Delete Images Older Than 30 Days
-        uses: dataaxiom/ghcr-cleanup-action@v1
+        uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           packages: fedora-createrepo-image,fedora-createrepo-image-minimal
