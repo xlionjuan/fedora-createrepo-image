@@ -37,7 +37,7 @@ jobs:
 
       - name: Install Podman and buildah on arm64
         if: contains( matrix.job.name , 'arm64')
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40 # v1.4.3
         with:
           packages: podman, buildah
 
