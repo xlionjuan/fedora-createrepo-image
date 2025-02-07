@@ -13,6 +13,8 @@ RUN dnf -y install createrepo_c devscripts reprepro jq wget tree rpm-sign gnupg 
     --exclude=rubygem-rdoc &&\
     rm -rf /var/log/dnf*.log /root/.cache /usr/share/locale
 
+RUN echo "HELLO"
+
     # From the line of the rpm-build is the requirements of the SELinux config rpm builder 
 
 RUN gem update --system --no-document &&\
