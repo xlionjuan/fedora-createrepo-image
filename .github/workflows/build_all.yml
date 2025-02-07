@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Check out the repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Podman and buildah on arm64
         if: contains( matrix.job.name , 'arm64')
@@ -48,7 +48,7 @@ jobs:
         run: mkdir -p ${{ env.HOST_DNF_CACHE_PATH }}
 
       - name: Restore DNF Cache
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
           key: dnf-cache-${{ matrix.job.name }}
@@ -58,7 +58,7 @@ jobs:
 
       - name: Extract metadata for Docker (main)
         id: meta-main
-        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
         with:
           images: ghcr.io/${{ github.repository }}
           flavor: |
@@ -69,7 +69,7 @@ jobs:
              type=ref,event=pr,suffix=-${{ matrix.job.name }}
 
       - name: Log in to ghcr.io (Using Action)
-        uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1
+        uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1.7
         #if: false
         with:
           username: ${{ github.actor }}
@@ -84,7 +84,7 @@ jobs:
 
       - name: Buildah Action (main)
         id: build-image-main
-        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
+        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2.13
         with:
           context: fe
           containerfiles: fe/Dockerfile.${{ env.FEDORA_VERSION }}
@@ -120,14 +120,14 @@ jobs:
           echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
 
       - name: Save DNF Cache
-        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
           key: dnf-cache-${{ matrix.job.name }}-${{ steps.get-date.outputs.date }}
 
       - name: Push (main)
         id: push-main
-        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
+        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2.8
         with:
           image: ${{ steps.build-image-main.outputs.image }}
           tags: ${{ steps.build-image-main.outputs.tags }}
@@ -138,7 +138,7 @@ jobs:
             --compression-format=zstd
 
       - name: Attest (main)
-        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         if: github.event_name != 'pull_request'
         with:
           subject-name: ghcr.io/${{ github.repository }}
@@ -157,7 +157,7 @@ jobs:
       attestations: write
     steps:
       - name: Login ghcr.io
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -200,7 +200,7 @@ jobs:
           echo "digest-time=$(echo '${{ steps.manifest-time.outputs.images }}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Attest (Tag resign) (latest)
-        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.get-digest-only.outputs.digest-latest }}
@@ -213,7 +213,7 @@ jobs:
           cosign sign --yes --recursive ${IMAGES}
 
       - name: Attest (Tag resign) (time)
-        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.get-digest-only.outputs.digest-time }}
@@ -235,7 +235,7 @@ jobs:
         run: echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
 
       - name: Login ghcr.io
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
