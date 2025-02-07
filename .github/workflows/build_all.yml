@@ -9,6 +9,9 @@ on:
   schedule:
       # Every Saturday at 2AM UTC
     - cron: "0 2 * * 6"
+  pull_request:
+    branches:
+      - 'main'
 
 env:
   DNF_CACHE_PATH: /var/cache/libdnf5 # F41+ and newer F40 with libdnf5
@@ -61,8 +64,9 @@ jobs:
           flavor: |
             latest=false
           tags: |
-             type=raw,value={{date 'YYYYMMDD'}}-${{ matrix.job.name }}
-             type=raw,value=latest-${{ matrix.job.name }}
+             type=raw,value={{date 'YYYYMMDD'}}-${{ matrix.job.name }},enable={{is_default_branch}}
+             type=raw,value=latest-${{ matrix.job.name }},enable={{is_default_branch}}
+             type=ref,event=pr,suffix=${{ matrix.job.name }}
 
       - name: Log in to ghcr.io (Using Action)
         uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1
@@ -106,7 +110,7 @@ jobs:
             echo '### DNF Cache purging: true' >> $GITHUB_STEP_SUMMARY
           else
             echo "Threshold size is not exceed."
-            echo '* ### DNF Cache purging: false' >> $GITHUB_STEP_SUMMARY
+            echo '### DNF Cache purging: false' >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Get Date for creating cache key
@@ -133,20 +137,9 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
-      - name: Sign the images with GitHub OIDC Token (main)
-        if: false
-        env:
-          DIGEST: ${{ steps.push-main.outputs.digest }}
-          TAGS: ${{ steps.meta-main.outputs.tags }}
-        run: |
-          images=""
-          for tag in ${TAGS}; do
-            images+="${tag}@${DIGEST} "
-          done
-          cosign sign --yes ${images}
-
       - name: Attest (main)
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2
+        if: github.event_name != 'pull_request'
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.push-main.outputs.digest }}
@@ -156,6 +149,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     name: Link Container tags
     needs: build-and-push
+    if: github.event_name != 'pull_request'
     permissions:
       contents: read
       packages: write
@@ -224,3 +218,35 @@ jobs:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.get-digest-only.outputs.digest-time }}
           push-to-registry: true
+
+  # For PR Test Only
+  # https://stackoverflow.com/questions/59077079/how-to-get-pull-request-number-within-github-actions-workflow
+  link-container-tags-test:
+    runs-on: ubuntu-24.04-arm
+    name: Link Container tags (PR Test)
+    needs: build-and-push
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Get PR number
+        id: pr
+        run: echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+
+      - name: Login ghcr.io
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push manifest (PR)
+        id: manifest-time
+        uses: Noelware/docker-manifest-action@7c492994ddff24302f28fddf722fbb1bd835e8dd
+        with:
+          base-image: ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}
+          extra-images: |
+            ghcr.io/${{ github.repository }}:${{ steps.pr.outputs.PR_NUMBER }}-amd64,
+            ghcr.io/${{ github.repository }}:${{ steps.pr.outputs.PR_NUMBER }}-arm64
+          push: true
