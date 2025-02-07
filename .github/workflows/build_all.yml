@@ -66,7 +66,7 @@ jobs:
           tags: |
              type=raw,value={{date 'YYYYMMDD'}}-${{ matrix.job.name }},enable={{is_default_branch}}
              type=raw,value=latest-${{ matrix.job.name }},enable={{is_default_branch}}
-             type=ref,event=pr,suffix=${{ matrix.job.name }}
+             type=ref,event=pr,suffix=-${{ matrix.job.name }}
 
       - name: Log in to ghcr.io (Using Action)
         uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1
@@ -247,6 +247,6 @@ jobs:
         with:
           base-image: ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}
           extra-images: |
-            ghcr.io/${{ github.repository }}:${{ steps.pr.outputs.PR_NUMBER }}-amd64,
-            ghcr.io/${{ github.repository }}:${{ steps.pr.outputs.PR_NUMBER }}-arm64
+            ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}-amd64,
+            ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}-arm64
           push: true
