@@ -131,7 +131,6 @@ jobs:
         with:
           image: ${{ steps.build-image-main.outputs.image }}
           tags: ${{ steps.build-image-main.outputs.tags }}
-          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           extra-args: |
