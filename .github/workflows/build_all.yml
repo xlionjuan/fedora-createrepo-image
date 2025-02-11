@@ -190,8 +190,8 @@ jobs:
         id: get-digest-only
         shell: bash
         run: |
-          echo "digest-latest=$(echo '${LATEST}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
-          echo "digest-time=$(echo '${TIME}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+          echo "digest-latest=$(echo \"${LATEST}\" | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+          echo "digest-time=$(echo \"${TIME}\" | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
         env:
           LATEST: ${{ steps.manifest-latest.outputs.images }}
           TIME: ${{ steps.manifest-time.outputs.images }}
