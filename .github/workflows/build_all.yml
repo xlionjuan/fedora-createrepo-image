@@ -78,12 +78,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
 
-      # https://github.com/ublue-os/bluefin/blob/36c6eef3a61ebfb41edf9e4d1a4c86648c977506/.github/workflows/reusable-build.yml#L149-L153
-      - name: Log in to ghcr.io (Using command) 
-        if: false
-        run: |
-          echo ${{ secrets.GITHUB_TOKEN }} | podman login ghcr.io -u ${{ github.actor }} --password-stdin
-
       - name: Buildah Action (main)
         id: build-image-main
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2.13
