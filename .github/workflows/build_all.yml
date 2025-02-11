@@ -72,7 +72,6 @@ jobs:
 
       - name: Log in to ghcr.io (Using Action)
         uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1.7
-        #if: false
         with:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
@@ -191,8 +190,11 @@ jobs:
         id: get-digest-only
         shell: bash
         run: |
-          echo "digest-latest=$(echo '${{ steps.manifest-latest.outputs.images }}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
-          echo "digest-time=$(echo '${{ steps.manifest-time.outputs.images }}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+          echo "digest-latest=$(echo '${LATEST}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+          echo "digest-time=$(echo '${TIME}' | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
+        env:
+          LATEST: ${{ steps.manifest-latest.outputs.images }}
+          TIME: ${{ steps.manifest-time.outputs.images }}
 
       - name: Attest (Tag resign) (latest)
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
