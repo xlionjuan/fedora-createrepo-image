@@ -41,7 +41,8 @@ jobs:
       - name: Install dependencies
         run: |
           dnf copr enable -y rhcontainerbot/podman-next
-          dnf install -y jq git podman buildah
+          dnf install -y jq git podman buildah \
+              --setopt=install_weak_deps=False
 
       - name: Check out the repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -80,10 +81,15 @@ jobs:
 
       - name: Log in to ghcr.io (Using Action)
         uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1.7
+        if: false
         with:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
+
+      - name: Login to GHCR (Using Command)
+        if: github.event_name != 'pull_request'
+        run: echo ${{ secrets.GITHUB_TOKEN }} | podman login -u ${{ github.actor }} --password-stdin ghcr.io
 
       - name: Buildah Action (main)
         id: build-image-main
