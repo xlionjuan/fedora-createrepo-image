@@ -161,8 +161,8 @@ jobs:
         id: manifest-latest
         uses: Noelware/docker-manifest-action@37bbd81eeae97b47d202a18804635d8fc8b34694
         with:
-          base-image: ghcr.io/${{ github.repository }}:latest
-          extra-images: |
+          inputs: ghcr.io/${{ github.repository }}:latest
+          images: |
             ghcr.io/${{ github.repository }}:latest-amd64,
             ghcr.io/${{ github.repository }}:latest-arm64
           push: true
@@ -177,8 +177,8 @@ jobs:
         id: manifest-time
         uses: Noelware/docker-manifest-action@37bbd81eeae97b47d202a18804635d8fc8b34694
         with:
-          base-image: ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}
-          extra-images: |
+          inputs: ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}
+          images: |
             ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-amd64,
             ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-arm64
           push: true
@@ -242,8 +242,8 @@ jobs:
         id: manifest-time
         uses: Noelware/docker-manifest-action@37bbd81eeae97b47d202a18804635d8fc8b34694
         with:
-          base-image: ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}
-          extra-images: |
+          inputs: ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}
+          images: |
             ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}-amd64,
             ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}-arm64
           push: true
