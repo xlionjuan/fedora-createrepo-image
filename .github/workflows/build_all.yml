@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: |
           dnf copr enable -y rhcontainerbot/podman-next
-          dnf install -y jq git podman buildah \
+          dnf install -y jq git podman buildah nodejs20-npm\
               --setopt=install_weak_deps=False
 
       - name: Check out the repository
