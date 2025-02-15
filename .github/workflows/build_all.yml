@@ -40,6 +40,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
+          dnf copr enable -y rhcontainerbot/podman-next
           dnf install -y jq git podman buildah \
               --setopt=install_weak_deps=False
 
