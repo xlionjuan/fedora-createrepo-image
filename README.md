@@ -21,7 +21,7 @@ The latest will be `latest`, and a date (`yyyymmdd`) tag if you wanna specific e
 
 ## Architectures
 
-Just use `latest` tag, it will choose right architecture automatically.
+Just use the `latest` tag, it will choose the right architecture automatically.
 
 * amd64
 * arm64
