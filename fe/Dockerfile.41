@@ -4,8 +4,8 @@ LABEL org.opencontainers.image.description="Simple container image just for crea
 
 # devscripts: Scripts for Debian Package maintainers
 
-RUN dnf -y install createrepo_c devscripts reprepro jq wget tree rpm-sign gnupg git \
-    rpm-build binutils policycoreutils policycoreutils-python-utils selinux-policy-devel \
+RUN dnf -y install createrepo_c devscripts reprepro jq wget tree rpm-sign gnupg git rpm-build \
+   # binutils policycoreutils policycoreutils-python-utils selinux-policy-devel \
     --setopt=install_weak_deps=False \
     --setopt=keepcache=True &&\
     dnf -y install ruby rubygem-json \
@@ -13,7 +13,7 @@ RUN dnf -y install createrepo_c devscripts reprepro jq wget tree rpm-sign gnupg 
     --exclude=rubygem-rdoc &&\
     rm -rf /var/log/dnf*.log /root/.cache /usr/share/locale
 
-    # From the line of the rpm-build is the requirements of the SELinux config rpm builder 
+    # From the line of the binutils is the requirements of the SELinux config rpm builder 
 
 RUN gem update --system --no-document &&\
     gem install fpm --no-document &&\
