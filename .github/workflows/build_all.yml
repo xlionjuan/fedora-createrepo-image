@@ -160,6 +160,7 @@ jobs:
             ghcr.io/${{ github.repository }}:latest-amd64,
             ghcr.io/${{ github.repository }}:latest-arm64
           push: true
+          append: true
 
       - name: Get Date
         id: get-date
@@ -176,6 +177,7 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-amd64,
             ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-arm64
           push: true
+          append: true
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
@@ -241,3 +243,4 @@ jobs:
             ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}-amd64,
             ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}-arm64
           push: true
+          append: true
