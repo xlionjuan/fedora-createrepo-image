@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:41
+FROM quay.io/fedora/fedora:42
 
 LABEL org.opencontainers.image.description="Simple container image just for create RPM and APT repo."
 

@@ -17,7 +17,6 @@ env:
   DNF_CACHE_PATH: /var/cache/libdnf5 # F41+ and newer F40 with libdnf5
   HOST_DNF_CACHE_PATH: /tmp/libdnf5 # Any path is okay
   DNF_CACHE_PURGE_THRESHOLD_MB: 400
-  FEDORA_VERSION: "41"
 
 jobs:
   build-and-push:
@@ -75,8 +74,8 @@ jobs:
         id: build-image-main
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2.13
         with:
-          context: fe
-          containerfiles: fe/Dockerfile.${{ env.FEDORA_VERSION }}
+          context: .
+          containerfiles: Dockerfile
           tags: ${{ steps.meta-main.outputs.tags }}
           oci: true
           extra-args: |
