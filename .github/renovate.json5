@@ -1,24 +1,52 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:best-practices"],
-  "timezone": "Asia/Taipei",
-  "enabledManagers": ["github-actions", "dockerfile"],
-  "packageRules": [
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:best-practices',
+  ],
+  timezone: 'Asia/Taipei',
+  enabledManagers: [
+    'github-actions',
+    'dockerfile',
+  ],
+  packageRules: [
     {
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["pin", "digest", "pinDigest","major", "minor", "patch"],
-      "automerge": true,
-      "labels": ["dependencies"]
+      matchManagers: [
+        'github-actions',
+      ],
+      matchUpdateTypes: [
+        'pin',
+        'digest',
+        'pinDigest',
+        'major',
+        'minor',
+        'patch',
+      ],
+      automerge: true,
+      labels: [
+        'dependencies',
+      ],
     },
     {
-      "matchManagers": ["dockerfile"],
-      "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
-      "matchPaths": ["(^|/)Dockerfile\\.\\d+$"],
-      "automerge": true,
-      "labels": ["dependencies"]
-    }
+      matchManagers: [
+        'dockerfile',
+      ],
+      matchUpdateTypes: [
+        'pin',
+        'digest',
+        'pinDigest',
+        'minor',
+        'patch',
+      ],
+      matchFileNames: [
+        '(^|/)Dockerfile\\.\\d+$',
+      ],
+      automerge: true,
+      labels: [
+        'dependencies',
+      ],
+    },
   ],
-  "schedule": [
-    "* 3-6 1 * *"
-  ]
+  schedule: [
+    '* 3-6 1 * *',
+  ],
 }
