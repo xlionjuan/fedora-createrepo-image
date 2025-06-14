@@ -3,9 +3,6 @@
   "extends": ["config:best-practices"],
   "timezone": "Asia/Taipei",
   "enabledManagers": ["github-actions", "dockerfile"],
-  "dockerfile": {
-    "managerFilePatterns": ["(^|/)Dockerfile\\.\\d+$"]
-  },
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
@@ -16,6 +13,7 @@
     {
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
+      "matchPaths": ["(^|/)Dockerfile\\.\\d+$"],
       "automerge": true,
       "labels": ["dependencies"]
     }
