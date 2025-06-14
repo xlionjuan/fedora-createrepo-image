@@ -14,7 +14,7 @@
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
       "automerge": true,
-      "managerFilePatterns": ["/(^|/)Dockerfile\.\d+$/"],
+      "fileMatch": ["(^|/)Dockerfile\\.\\d+$"],
       "labels": ["dependencies"]
     }
   ],
