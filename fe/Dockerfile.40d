@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:40
+FROM registry.fedoraproject.org/fedora:40@sha256:13aabccdff710503b5c7874810d1b50b2a64767875bca25509d147b7cdc487b8
 
 LABEL org.opencontainers.image.description="Simple container image just for create RPM and APT repo."
 
