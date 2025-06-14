@@ -2,7 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:best-practices"],
   "timezone": "Asia/Taipei",
-  "enabledManagers": ["github-actions", "dockerfile"],
+  "enabledManagers": [
+    {
+      "manager": "dockerfile",
+      "fileMatch": ["(^|/)Dockerfile\\.\\d+$"]
+    }
+  ],
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
@@ -13,7 +18,6 @@
     {
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
-      "matchPaths": ["(^|/)Dockerfile\\.\\d+$"],
       "automerge": true,
       "labels": ["dependencies"]
     }
