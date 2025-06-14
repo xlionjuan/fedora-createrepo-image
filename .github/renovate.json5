@@ -9,6 +9,13 @@
       "matchUpdateTypes": ["pin", "digest", "pinDigest","major", "minor", "patch"],
       "automerge": true,
       "labels": ["dependencies"]
+    },
+    {
+      "matchManagers": ["docker"],
+      "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
+      "automerge": true,
+      "managerFilePatterns": ["/(^|/)Dockerfile\.\d+$/"],
+      "labels": ["dependencies"]
     }
   ],
   "schedule": [
