@@ -3,6 +3,7 @@
   "extends": ["config:best-practices"],
   "timezone": "Asia/Taipei",
   "enabledManagers": [
+    "github-actions",
     {
       "manager": "dockerfile",
       "fileMatch": ["(^|/)Dockerfile\\.\\d+$"]
