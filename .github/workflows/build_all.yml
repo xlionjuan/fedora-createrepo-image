@@ -125,7 +125,7 @@ jobs:
             --compression-format=zstd
 
       - name: Attest (main)
-        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         if: github.event_name != 'pull_request'
         with:
           subject-name: ghcr.io/${{ github.repository }}
@@ -190,7 +190,7 @@ jobs:
           TIME: ${{ steps.manifest-time.outputs.images }}
 
       - name: Attest (Tag resign) (latest)
-        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.get-digest-only.outputs.digest-latest }}
@@ -203,7 +203,7 @@ jobs:
           cosign sign --yes --recursive ${IMAGES}
 
       - name: Attest (Tag resign) (time)
-        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.get-digest-only.outputs.digest-time }}
