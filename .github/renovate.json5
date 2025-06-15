@@ -14,7 +14,8 @@
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
       "automerge": true,
-      "labels": ["dependencies"]
+      "labels": ["dependencies"],
+      "schedule": ["* * * * *"]
     }
   ],
   "schedule": [
