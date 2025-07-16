@@ -10,7 +10,7 @@ I mainly use it on all of my RustDesk repos. (Check my profile)
 
 ## Frequency
 
-Build once a week. 
+~~Build once a week. ~~ When new base images available.
 
 ## Installed packages
 
