@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:42@sha256:e46630003cae8c0017cdaab33f2edfe92049cc8111e9a9174b82e4c00cb2f710
+FROM quay.io/fedora/fedora:42@sha256:c877f0d32691746f56a6dc8fa73fd8d10606d2059acd535dff7924618e7cf995
 
 LABEL org.opencontainers.image.description="Simple container image just for create RPM and APT repo."
 
