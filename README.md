@@ -59,7 +59,7 @@ jobs:
         # You only need to choose one method
 
         - name: Install Cosign
-          uses: sigstore/cosign-installer@v3.7.0
+          uses: sigstore/cosign-installer@v4.0.0
 
         - name: Verify with cosign
           run: |
@@ -82,7 +82,7 @@ jobs:
       container: ghcr.io/xlionjuan/fedora-createrepo-image:latest
       steps:
         - name: Checkout code
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
 
         - name: Do something
           run: rpm -qa
