@@ -15,6 +15,9 @@ RUN dnf -y install createrepo_c devscripts reprepro jq wget2-wget tree rpm-sign 
 
     # From the line of the binutils is the requirements of the SELinux config rpm builder 
 
+COPY aptly.sh /tmp/aptly.sh
+RUN /tmp/aptly.sh
+
 RUN gem update --system --no-document &&\
     gem install fpm --no-document &&\
     gem clean &&\
