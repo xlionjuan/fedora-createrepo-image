@@ -13,6 +13,10 @@ on:
     branches:
       - 'main'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DNF_CACHE_PATH: /var/cache/libdnf5 # F41+ and newer F40 with libdnf5
   HOST_DNF_CACHE_PATH: /tmp/libdnf5 # Any path is okay
