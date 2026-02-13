@@ -5,7 +5,7 @@ LABEL org.opencontainers.image.description="Simple container image just for crea
 # devscripts: Scripts for Debian Package maintainers
 # The set opt will write to /etc/dnf/repos.override.d
 # https://dnf5.readthedocs.io/en/latest/dnf5_plugins/config-manager.8.html
-RUN dnf5 config-manager setopt fedora-cisco-openh264.enabled=0 \
+RUN dnf5 config-manager setopt fedora-cisco-openh264.enabled=0 &&\
     dnf -y install createrepo_c devscripts reprepro jq wget2-wget tree rpm-sign gnupg git rpm-build gh \
    # binutils policycoreutils policycoreutils-python-utils selinux-policy-devel \
     --setopt=install_weak_deps=False \
