@@ -281,12 +281,12 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository }}
           DATE: ${{ steps.get-date.outputs.date }}
         run: |
-          echo "## Container tag inspect for `latest` tag" >> "$GITHUB_STEP_SUMMARY"
+          echo '## Container tag inspect for `latest` tag" >> "$GITHUB_STEP_SUMMARY'
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           docker buildx imagetools inspect "${IMAGE}:latest" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-          echo "## Container tag inspect for `${DATE}` (date) tag" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Container tag inspect for \`${DATE}\` (date) tag" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           docker buildx imagetools inspect "${IMAGE}:${DATE}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -336,7 +336,7 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          echo "## Container tag inspect for PR" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Container tag inspect for PR-${PR_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           docker buildx imagetools inspect "${IMAGE}:${PR_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
