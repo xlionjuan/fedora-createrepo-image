@@ -130,13 +130,13 @@ jobs:
           digest="${{ steps.push-main.outputs.digest }}"
           test -n "$digest"
           mkdir -p /tmp/digests
-          echo "$digest" > "/tmp/digests/${{ matrix.arch }}.digest"
-          echo "${{ github.sha }}" > "digests/${{ matrix.arch }}.sha"
+          echo "$digest" > "/tmp/digests/${{ matrix.job.name }}.digest"
+          echo "${{ github.sha }}" > "/tmp/digests/${{ matrix.job.name }}.sha"
 
       - name: Upload digest artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: digests-${{ github.sha }}-${{ matrix.arch }}
+          name: digests-${{ github.sha }}-${{ matrix.job.name }}
           path: /tmp/digests
           if-no-files-found: error
           retention-days: 1
