@@ -228,6 +228,10 @@ jobs:
             "${IMAGE}@${AMD64}" \
             "${IMAGE}@${ARM64}"
 
+      # Hope to get rid of this in the future
+      # Otherwise, the digest can't being guaranteed
+      # https://github.com/docker/buildx/issues/2407
+
       - name: Get manifest digest (latest)
         id: digest-latest
         run: |
@@ -272,6 +276,21 @@ jobs:
         run: |
           cosign sign --yes --recursive ${IMAGE}
 
+      - name: Output summary
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          DATE: ${{ steps.get-date.outputs.date }}
+        run: |
+          echo "## Container tag inspect for `latest` tag" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "${IMAGE}:latest" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          echo "## Container tag inspect for `${DATE}` (date) tag" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "${IMAGE}:${DATE}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
   # For PR Test Only
   # https://stackoverflow.com/questions/59077079/how-to-get-pull-request-number-within-github-actions-workflow
   link-container-tags-test:
@@ -299,12 +318,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push manifest (PR)
-        id: manifest-time
-        uses: Noelware/docker-manifest-action@dbe59e31eb61049f37aa51bfc7f44d899215008e
-        with:
-          inputs: ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}
-          images: |
-            ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}-amd64,
-            ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}-arm64
-          push: true
+      - name: Create and push manifest (PR) via imagetools
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          AMD64: ${{ steps.read.outputs.amd64_digest }}
+          ARM64: ${{ steps.read.outputs.arm64_digest }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            -t "${IMAGE}:pr-${PR_NUMBER}" \
+            "${IMAGE}@${AMD64}" \
+            "${IMAGE}@${ARM64}"
+
+      - name: Output summary
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "## Container tag inspect for PR" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "${IMAGE}:${PR_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
