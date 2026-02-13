@@ -123,6 +123,24 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
+      - name: Write digest to file
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="${{ steps.push-main.outputs.digest }}"
+          test -n "$digest"
+          mkdir -p digests
+          echo "$digest" > "digests/${{ matrix.arch }}.digest"
+          echo "${{ github.sha }}" > "digests/${{ matrix.arch }}.sha"
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: digests-${{ github.sha }}-${{ matrix.arch }}
+          path: digests/
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Attest (main)
         uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
         if: github.event_name != 'pull_request'
@@ -147,6 +165,31 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Download digest artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: digests-${{ github.sha }}-*
+          path: digests_downloaded
+          merge-multiple: true
+
+      - name: Read digests
+        id: read
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          AMD64_DIGEST="$(cat digests_downloaded/amd64.digest)"
+          ARM64_DIGEST="$(cat digests_downloaded/arm64.digest)"
+
+          test -n "$AMD64_DIGEST"
+          test -n "$ARM64_DIGEST"
+
+          test "$(cat digests_downloaded/amd64.sha)" = "${GITHUB_SHA}"
+          test "$(cat digests_downloaded/arm64.sha)" = "${GITHUB_SHA}"
+
+          echo "amd64_digest=$AMD64_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "arm64_digest=$ARM64_DIGEST" >> "$GITHUB_OUTPUT"
+
       - name: Login ghcr.io
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
@@ -154,64 +197,80 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push manifest (latest)
-        id: manifest-latest
-        uses: Noelware/docker-manifest-action@dbe59e31eb61049f37aa51bfc7f44d899215008e
-        with:
-          inputs: ghcr.io/${{ github.repository }}:latest
-          images: |
-            ghcr.io/${{ github.repository }}:latest-amd64,
-            ghcr.io/${{ github.repository }}:latest-arm64
-          push: true
-
       - name: Get Date
         id: get-date
         shell: bash
         run: |
           echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
 
-      - name: Create and push manifest (time)
-        id: manifest-time
-        uses: Noelware/docker-manifest-action@dbe59e31eb61049f37aa51bfc7f44d899215008e
-        with:
-          inputs: ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}
-          images: |
-            ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-amd64,
-            ghcr.io/${{ github.repository }}:${{ steps.get-date.outputs.date }}-arm64
-          push: true
+      - name: Create and push manifest (latest) via imagetools
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          AMD64: ${{ steps.read.outputs.amd64_digest }}
+          ARM64: ${{ steps.read.outputs.arm64_digest }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            -t "${IMAGE}:latest" \
+            "${IMAGE}@${AMD64}" \
+            "${IMAGE}@${ARM64}"
 
+      - name: Create and push manifest (time) via imagetools
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          AMD64: ${{ steps.read.outputs.amd_digest }}
+          ARM64: ${{ steps.read.outputs.arm_digest }}
+          DATE: ${{ steps.get-date.outputs.date }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            -t "${IMAGE}:${DATE}" \
+            "${IMAGE}@${AMD64}" \
+            "${IMAGE}@${ARM64}"
+
+      - name: Get manifest digest (latest)
+        id: digest-latest
+        env:
+          DATE: ${{ steps.get-date.outputs.date }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}"
+          DIGEST="$(docker buildx imagetools inspect --format '{{.Digest}}' "${IMAGE}:latest")"
+          test -n "$DIGEST"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Get manifest digest (time)
+        id: digest-time
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}"
+          DIGEST="$(docker buildx imagetools inspect --format '{{.Digest}}' "${IMAGE}:${DATE}")"
+          test -n "$DIGEST"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          
       - name: Install Cosign
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
-
-      - name: "Image:Digest -> Digest"
-        id: get-digest-only
-        shell: bash
-        run: |
-          echo "digest-latest=$(echo ${LATEST} | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
-          echo "digest-time=$(echo ${TIME} | awk -F'@' '{print $2}')" >> $GITHUB_OUTPUT
-        env:
-          LATEST: ${{ steps.manifest-latest.outputs.images }}
-          TIME: ${{ steps.manifest-time.outputs.images }}
 
       - name: Attest (Tag resign) (latest)
         uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
         with:
           subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ steps.get-digest-only.outputs.digest-latest }}
+          subject-digest: ${{ steps.digest-latest.outputs.digest }}
           push-to-registry: true
-
-      - name: Sign the images with GitHub OIDC Token (recursive)
-        env:
-          IMAGES: ${{ steps.manifest-time.outputs.images }}
-        run: |
-          cosign sign --yes --recursive ${IMAGES}
 
       - name: Attest (Tag resign) (time)
         uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
         with:
           subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ steps.get-digest-only.outputs.digest-time }}
+          subject-digest: ${{ steps.digest-time.outputs.digest }}
           push-to-registry: true
+
+      # This will cover all the related tags    
+      - name: Sign the images with GitHub OIDC Token (recursive)
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}@${{ steps.digest-time.outputs.digest }}
+        run: |
+          cosign sign --yes --recursive ${IMAGE}
 
   # For PR Test Only
   # https://stackoverflow.com/questions/59077079/how-to-get-pull-request-number-within-github-actions-workflow
