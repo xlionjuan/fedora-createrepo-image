@@ -131,6 +131,8 @@ install -m 0644 \
   "$APTLY_EXTRACT_DIR/completion/bash_completion.d/aptly" \
   /usr/share/bash-completion/completions/aptly
 
+aptly version
+
 echo "Installation completed successfully."
 echo "aptly version: $APTLY_TAG"
 echo "architecture:  $APTLY_ARCH"
