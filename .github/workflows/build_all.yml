@@ -129,15 +129,15 @@ jobs:
           set -euo pipefail
           digest="${{ steps.push-main.outputs.digest }}"
           test -n "$digest"
-          mkdir -p digests
-          echo "$digest" > "digests/${{ matrix.arch }}.digest"
+          mkdir -p /tmp/digests
+          echo "$digest" > "/tmp/digests/${{ matrix.arch }}.digest"
           echo "${{ github.sha }}" > "digests/${{ matrix.arch }}.sha"
 
       - name: Upload digest artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: digests-${{ github.sha }}-${{ matrix.arch }}
-          path: digests
+          path: /tmp/digests
           if-no-files-found: error
           retention-days: 1
 
@@ -169,7 +169,7 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: digests-${{ github.sha }}-*
-          path: digests_downloaded
+          path: /tmp/digests_downloaded
           merge-multiple: true
 
       - name: Read digests
@@ -178,14 +178,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          AMD64_DIGEST="$(cat digests_downloaded/amd64.digest)"
-          ARM64_DIGEST="$(cat digests_downloaded/arm64.digest)"
+          AMD64_DIGEST="$(cat /tmp/digests_downloaded/amd64.digest)"
+          ARM64_DIGEST="$(cat /tmp/digests_downloaded/arm64.digest)"
 
           test -n "$AMD64_DIGEST"
           test -n "$ARM64_DIGEST"
 
-          test "$(cat digests_downloaded/amd64.sha)" = "${GITHUB_SHA}"
-          test "$(cat digests_downloaded/arm64.sha)" = "${GITHUB_SHA}"
+          test "$(cat /tmp/digests_downloaded/amd64.sha)" = "${GITHUB_SHA}"
+          test "$(cat /tmp/digests_downloaded/arm64.sha)" = "${GITHUB_SHA}"
 
           echo "amd64_digest=$AMD64_DIGEST" >> "$GITHUB_OUTPUT"
           echo "arm64_digest=$ARM64_DIGEST" >> "$GITHUB_OUTPUT"
