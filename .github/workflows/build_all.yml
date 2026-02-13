@@ -301,7 +301,7 @@ jobs:
 
       - name: Create and push manifest (PR)
         id: manifest-time
-        uses: Noelware/docker-manifest-action@dbe59e31eb61049f37aa51bfc7f44d899215008e
+        uses: Noelware/docker-manifest-action@3a323969e43827779eebb7d59dde7e1570bb2440
         with:
           inputs: ghcr.io/${{ github.repository }}:pr-${{ steps.pr.outputs.PR_NUMBER }}
           images: |
