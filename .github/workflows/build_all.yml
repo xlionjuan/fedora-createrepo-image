@@ -281,7 +281,7 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository }}
           DATE: ${{ steps.get-date.outputs.date }}
         run: |
-          echo '## Container tag inspect for `latest` tag" >> "$GITHUB_STEP_SUMMARY'
+          echo '## Container tag inspect for `latest` tag` >> "$GITHUB_STEP_SUMMARY'
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           docker buildx imagetools inspect "${IMAGE}:latest" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
