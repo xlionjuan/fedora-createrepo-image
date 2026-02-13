@@ -230,8 +230,6 @@ jobs:
 
       - name: Get manifest digest (latest)
         id: digest-latest
-        env:
-          DATE: ${{ steps.get-date.outputs.date }}
         run: |
           set -euo pipefail
           IMAGE="ghcr.io/${{ github.repository }}"
@@ -241,6 +239,8 @@ jobs:
 
       - name: Get manifest digest (time)
         id: digest-time
+        env:
+          DATE: ${{ steps.get-date.outputs.date }}
         run: |
           set -euo pipefail
           IMAGE="ghcr.io/${{ github.repository }}"
