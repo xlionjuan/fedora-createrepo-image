@@ -218,8 +218,8 @@ jobs:
       - name: Create and push manifest (time) via imagetools
         env:
           IMAGE: ghcr.io/${{ github.repository }}
-          AMD64: ${{ steps.read.outputs.amd_digest }}
-          ARM64: ${{ steps.read.outputs.arm_digest }}
+          AMD64: ${{ steps.read.outputs.amd64_digest }}
+          ARM64: ${{ steps.read.outputs.arm64_digest }}
           DATE: ${{ steps.get-date.outputs.date }}
         run: |
           set -euo pipefail
