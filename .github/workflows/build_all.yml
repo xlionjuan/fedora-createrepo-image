@@ -233,7 +233,7 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="ghcr.io/${{ github.repository }}"
-          DIGEST="$(docker buildx imagetools inspect --format '{{json .Manifest}}' "${IMAGE}:latest" | jq -r '.digest // empty')"
+          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:latest" --format '{{json .Manifest}}' | jq -r '.digest // empty')"
           test -n "$DIGEST"
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
@@ -244,7 +244,7 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="ghcr.io/${{ github.repository }}"
-          DIGEST="$(docker buildx imagetools inspect --format '{{json .Manifest}}'  "${IMAGE}:${DATE} | jq -r '.digest // empty'")"
+          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${DATE} --format '{{json .Manifest}}' | jq -r '.digest // empty'")"
           test -n "$DIGEST"
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           
