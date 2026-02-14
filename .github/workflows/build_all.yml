@@ -367,5 +367,5 @@ jobs:
         run: |
           echo "## Container tag inspect for PR-${PR_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          docker buildx imagetools inspect "${IMAGE}:${PR_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "${IMAGE}:pr-${PR_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
