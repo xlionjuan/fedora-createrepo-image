@@ -72,12 +72,12 @@ jobs:
              type=raw,value=latest-${{ matrix.job.name }},enable={{is_default_branch}}
              type=ref,event=pr,suffix=-${{ matrix.job.name }}
 
-      - name: Log in to ghcr.io (Using Action)
-        uses: redhat-actions/podman-login@4934294ad0449894bcd1e9f191899d7292469603 # v1.7
+      - name: Login ghcr.io
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          registry: ghcr.io
 
       - name: Buildah Action (main)
         id: build-image-main
@@ -122,8 +122,6 @@ jobs:
         with:
           image: ${{ steps.build-image-main.outputs.image }}
           tags: ${{ steps.build-image-main.outputs.tags }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
           extra-args: |
             --compression-format=zstd
 
