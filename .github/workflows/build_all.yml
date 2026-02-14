@@ -311,6 +311,31 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Download digest artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: digests-${{ github.sha }}-*
+          path: /tmp/digests_downloaded
+          merge-multiple: true
+
+      - name: Read digests
+        id: read
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          AMD64_DIGEST="$(cat /tmp/digests_downloaded/amd64.digest)"
+          ARM64_DIGEST="$(cat /tmp/digests_downloaded/arm64.digest)"
+
+          test -n "$AMD64_DIGEST"
+          test -n "$ARM64_DIGEST"
+
+          test "$(cat /tmp/digests_downloaded/amd64.sha)" = "${GITHUB_SHA}"
+          test "$(cat /tmp/digests_downloaded/arm64.sha)" = "${GITHUB_SHA}"
+
+          echo "amd64_digest=$AMD64_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "arm64_digest=$ARM64_DIGEST" >> "$GITHUB_OUTPUT"
+
       - name: Get PR number
         id: pr
         run: echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
