@@ -2,6 +2,8 @@ FROM quay.io/fedora/fedora:43@sha256:242d2fd874e8b5e9b1fe1018b50458f36058d6e78f9
 
 LABEL org.opencontainers.image.description="Simple container image just for create RPM and APT repo."
 
+COPY scripts/* /usr/bin
+
 # devscripts: Scripts for Debian Package maintainers
 # The set opt will write to /etc/dnf/repos.override.d
 # https://dnf5.readthedocs.io/en/latest/dnf5_plugins/config-manager.8.html

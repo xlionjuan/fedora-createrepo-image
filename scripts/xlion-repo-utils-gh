@@ -1,0 +1,322 @@
+#!/bin/bash
+#
+# xlion-repo-utils-gh - GitHub Release Utilities
+# Fetch download URLs and SHA256 checksums from GitHub releases
+#
+
+set -euo pipefail
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Defaults
+WORKFOLDER=""
+REPO=""
+TAG="latest"
+VERIFY_MODE=false
+
+error() {
+  echo -e "${RED}Error: $1${NC}" >&2
+  exit 1
+}
+
+warn() {
+  echo -e "${YELLOW}Warning: $1${NC}" >&2
+}
+
+success() {
+  echo -e "${GREEN}$1${NC}"
+}
+
+info() {
+  echo -e "${BLUE}$1${NC}"
+}
+
+show_help() {
+  cat << EOF
+xlion-repo-utils-gh - GitHub Release Utilities
+
+Fetch download URLs and SHA256 checksums from GitHub releases.
+
+Usage:
+  $(basename "$0") --repo OWNER/REPO [--tag TAG|latest] [--workfolder PATH]
+  $(basename "$0") --verify --workfolder PATH
+
+Options:
+  --repo OWNER/REPO    GitHub repository in format 'owner/repo' (e.g., 'rustdesk/rustdesk')
+                       Required unless using --verify.
+  --tag TAG            Release tag to fetch (default: 'latest').
+                       Use 'latest' or a specific tag name.
+  --workfolder PATH    Working directory for output files.
+                       If not specified in fetch mode, a temporary directory will be created
+                       in /tmp using: mktemp -d /tmp/xlion-repo.XXXXX
+  --verify             Verify downloaded files in workfolder using workfolder/sha256.txt.
+                       Requires --workfolder.
+  -h, --help           Show this help message.
+
+Outputs (fetch mode):
+  - api.json
+  - dl_urls.txt
+  - sha256.txt (optional; only if SHA256 digests exist in the API response)
+
+Examples:
+  # Fetch latest release
+  $(basename "$0") --repo rustdesk/rustdesk
+
+  # Fetch specific tag into a known folder
+  $(basename "$0") --repo rustdesk/rustdesk --tag 1.4.6 --workfolder /tmp/myrepo
+
+  # Verify downloaded files in workfolder
+  $(basename "$0") --verify --workfolder /tmp/myrepo
+
+Notes:
+  - All comments and log messages are in English by design.
+  - Quote arguments when needed:
+      --repo "owner/repo"  or  --repo 'owner/repo'
+EOF
+}
+
+check_dependencies() {
+  # Usage: check_dependencies cmd1 cmd2 ...
+  local missing=()
+  local cmd
+
+  for cmd in "$@"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      missing+=("$cmd")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    error "Missing required CLI tool(s): ${missing[*]}"
+  fi
+}
+
+ensure_abs_workfolder() {
+  local wf="$1"
+  mkdir -p "$wf" || error "Failed to create workfolder: $wf"
+  (cd "$wf" && pwd -P) || error "Failed to resolve absolute path for workfolder: $wf"
+}
+
+fetch_mode() {
+  check_dependencies curl jq mktemp wc
+
+  if [[ -z "$REPO" ]]; then
+    error "Option --repo is required (unless using --verify)."
+  fi
+
+  if [[ -z "$WORKFOLDER" ]]; then
+    WORKFOLDER=$(mktemp -d /tmp/xlion-repo.XXXXX) || error "Failed to create temporary directory"
+    echo "Workfolder not specified, using auto-created: $WORKFOLDER"
+  fi
+
+  WORKFOLDER=$(ensure_abs_workfolder "$WORKFOLDER")
+
+  echo "------------------------------"
+  echo "XLion repo utils (GitHub)"
+  echo ""
+  echo "repo: $REPO"
+  echo "tag: $TAG"
+  echo "workfolder: $WORKFOLDER"
+  echo "------------------------------"
+
+  local api_url
+  if [[ "$TAG" == "latest" ]]; then
+    api_url="https://api.github.com/repos/$REPO/releases/latest"
+  else
+    api_url="https://api.github.com/repos/$REPO/releases/tags/$TAG"
+  fi
+
+  local api_json="$WORKFOLDER/api.json"
+  local dl_urls_file="$WORKFOLDER/dl_urls.txt"
+  local sha256_file="$WORKFOLDER/sha256.txt"
+
+  echo "Fetching release information from GitHub API..."
+  curl --retry 12 --retry-all-errors \
+    -s \
+    -o "$api_json" \
+    "$api_url" || error "Failed to fetch GitHub API: $api_url"
+
+  if jq -e -r '.message // empty' "$api_json" >/dev/null 2>&1; then
+    local msg
+    msg=$(jq -r '.message' "$api_json")
+    error "GitHub API error: $msg"
+  fi
+
+  if ! jq -e '.assets[] | select(.browser_download_url != null)' "$api_json" >/dev/null 2>&1; then
+    error "No assets with browser_download_url found in release. API response saved to: $api_json"
+  fi
+
+  jq -r '.assets[] | select(.browser_download_url != null) | .browser_download_url' "$api_json" > "$dl_urls_file"
+
+  # Extract SHA256 digests (digest format: "sha256:<hex>")
+  if jq -e '.assets[] | select(.digest != null)' "$api_json" >/dev/null 2>&1; then
+    # "sha256:" is 7 characters, so use [7:]
+    jq -r '.assets[] | select(.digest != null) | .digest[7:] + "  " + .name' "$api_json" > "$sha256_file"
+    success "Created $sha256_file with SHA256 checksums"
+  else
+    warn "No SHA256 digest information found in release assets. Skipping sha256.txt creation."
+    rm -f "$sha256_file" 2>/dev/null || true
+  fi
+
+  echo ""
+  success "Created api.json"
+  success "Created dl_urls.txt with $(wc -l < "$dl_urls_file") download URL(s)"
+  if [[ -f "$sha256_file" ]]; then
+    success "Created sha256.txt with checksums"
+  fi
+
+  echo ""
+  echo "All files saved in: $WORKFOLDER"
+}
+
+verify_mode() {
+  check_dependencies sha256sum
+
+  if [[ -z "$WORKFOLDER" ]]; then
+    error "Option --workfolder is required when using --verify."
+  fi
+
+  if [[ ! -d "$WORKFOLDER" ]]; then
+    error "Workfolder does not exist: $WORKFOLDER"
+  fi
+
+  WORKFOLDER=$( (cd "$WORKFOLDER" && pwd -P) ) || error "Failed to resolve absolute path for workfolder: $WORKFOLDER"
+
+  echo "------------------------------"
+  echo "XLion repo utils (GitHub)"
+  echo ""
+  echo "mode: verify"
+  echo "workfolder: $WORKFOLDER"
+  echo "------------------------------"
+  echo ""
+
+  local sha256_file="$WORKFOLDER/sha256.txt"
+  if [[ ! -f "$sha256_file" ]]; then
+    error "sha256.txt not found in workfolder: $sha256_file"
+  fi
+  if [[ ! -s "$sha256_file" ]]; then
+    error "sha256.txt is empty: $sha256_file"
+  fi
+
+  info "Verifying downloaded files using sha256.txt..."
+
+  local total=0
+  local passed=0
+  local failed=0
+  local skipped=0
+  local malformed=0
+
+  # Verify each entry from sha256.txt individually.
+  # This avoids locale-dependent sha256sum -c output parsing.
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+
+    # Expect format: <hash><two spaces><filename>
+    if [[ "$line" != *"  "* ]]; then
+      ((malformed+=1))
+      warn "Malformed checksum line (missing double-space separator): $line"
+      continue
+    fi
+
+    local hash filename
+    hash="${line%%  *}"
+    filename="${line#*  }"
+
+    if [[ -z "$hash" || -z "$filename" ]]; then
+      ((malformed+=1))
+      warn "Malformed checksum line: $line"
+      continue
+    fi
+
+    ((total+=1))
+
+    if [[ ! -f "$WORKFOLDER/$filename" ]]; then
+      ((skipped+=1))
+      echo -e "  ${YELLOW}⊘${NC} $filename (file not found)"
+      continue
+    fi
+
+    if printf '%s  %s\n' "$hash" "$filename" | (cd "$WORKFOLDER" && sha256sum -c - >/dev/null 2>&1); then
+      ((passed+=1))
+      echo -e "  ${GREEN}✓${NC} $filename"
+    else
+      ((failed+=1))
+      echo -e "  ${RED}✗${NC} $filename"
+    fi
+  done < "$sha256_file"
+
+  echo ""
+  echo "------------------------------"
+  echo "Verification Summary:"
+  echo "  Total entries: $total"
+  echo -e "  ${GREEN}Passed: $passed${NC}"
+  if [[ $skipped -gt 0 ]]; then
+    echo -e "  ${YELLOW}Skipped (not found): $skipped${NC}"
+  else
+    echo -e "  ${YELLOW}Skipped (not found): 0${NC}"
+  fi
+  if [[ $malformed -gt 0 ]]; then
+    echo -e "  ${YELLOW}Malformed lines: $malformed${NC}"
+  fi
+
+  if [[ $failed -gt 0 ]]; then
+    echo -e "  ${RED}Failed: $failed${NC}"
+    echo ""
+    error "Verification failed for $failed file(s)."
+  fi
+
+  echo ""
+  success "Verification finished successfully."
+}
+
+main() {
+  if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+  fi
+
+  # Parse args
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --workfolder)
+        [[ $# -ge 2 ]] || error "Option --workfolder requires a value."
+        WORKFOLDER="$2"
+        shift 2
+        ;;
+      --repo)
+        [[ $# -ge 2 ]] || error "Option --repo requires a value."
+        REPO="$2"
+        shift 2
+        ;;
+      --tag)
+        [[ $# -ge 2 ]] || error "Option --tag requires a value."
+        TAG="$2"
+        shift 2
+        ;;
+      --verify)
+        VERIFY_MODE=true
+        shift
+        ;;
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      *)
+        error "Unknown option: $1. Use --help for usage information."
+        ;;
+    esac
+  done
+
+  if [[ "$VERIFY_MODE" == true ]]; then
+    verify_mode
+  else
+    fetch_mode
+  fi
+}
+
+main "$@"
