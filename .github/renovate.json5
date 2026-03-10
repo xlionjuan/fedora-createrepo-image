@@ -7,6 +7,7 @@
   enabledManagers: [
     'github-actions',
     'dockerfile',
+    'custom.regex',
   ],
   customManagers: [
     {
