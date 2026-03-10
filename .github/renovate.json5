@@ -3,6 +3,18 @@
   "extends": ["config:best-practices"],
   "timezone": "Asia/Taipei",
   "enabledManagers": ["github-actions", "dockerfile"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["README.md"],
+      "matchStrings": [
+        "uses:\\s+(?<depName>[^@#\\s]+)@(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "github-tags",
+      "packageNameTemplate": "$depName",
+      "versioningTemplate": "semver"
+    }
+  ],
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
