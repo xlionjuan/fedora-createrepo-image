@@ -19,7 +19,7 @@
         'uses:\\s+(?<depName>[^@#\\s]+)@(?<currentValue>\\S+)',
       ],
       datasourceTemplate: 'github-tags',
-      packageNameTemplate: '$depName',
+      packageNameTemplate: '{{{depName}}}',
       versioningTemplate: 'semver',
     },
   ],
