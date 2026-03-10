@@ -4,7 +4,7 @@
 
 Build a Fedora based container image just for creating and building [RPM](https://github.com/xlionjuan/rustdesk-rpm-repo) and also [APT](https://github.com/xlionjuan/rustdesk-apt-repo-latest) repo.
 
-By creating and using this container images, it can save ***time, resources and energy***, because it won't need to update package lists and install dependencies every times when it runs.
+By creating and using this container images, it can save ***time, resources and energy***, because it won't need to update package lists and install dependencies every time when it runs.
 
 I mainly use it on all of my RustDesk repos. (Check my profile)
 
@@ -14,10 +14,17 @@ I mainly use it on all of my RustDesk repos. (Check my profile)
 
 ## Installed packages
 
-Most for the packages that for packaging `.deb` and `.rpm`, and the packages for creating its repos, and [fpm](https://github.com/jordansissel/fpm) for reversioning and repackaging packages, also [aptly](https://github.com/aptly-dev/aptly) for apt repo creation, for more details, please refer to the Dockerfile.
+This container includes the following packages:
+
+- **RPM/APT repo tools**: createrepo_c, reprepro, [aptly](https://github.com/aptly-dev/aptly)
+- **Package building**: rpm-build, devscripts, ruby, rubygem-json
+- **Utilities**: jq, wget2, tree, gnupg, git, gh, rpm-sign
+- **Package repackaging**: [fpm](https://github.com/jordansissel/fpm)
+
+For more details, please refer to the Dockerfile.
 
 ## Tagging
-The latest will be `latest`, and a date (`yyyymmdd`) tag if you wanna specific environment or testing.
+The latest will be `latest`, and a date (`yyyymmdd`) tag if you want specific environment or for testing.
 
 ## Architectures
 
@@ -28,7 +35,7 @@ Just use the `latest` tag, it will choose the right architecture automatically.
 
 ## Use this container in actions
 
-Just add `container: ghcr.io/xlionjuan/fedora-createrepo-image:latest` after `runs-on: ubuntu-24.04-arm`, if your workflows doesn't need x86 runners, I recommend to use ARM runners because it is using lower footprints.
+Just add `container: ghcr.io/xlionjuan/fedora-createrepo-image:latest` after `runs-on: ubuntu-24.04-arm`, if your workflows doesn't need x86 runners, I recommend using ARM runners because it is using lower footprints.
 
 ```yml
 jobs:
