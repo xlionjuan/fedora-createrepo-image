@@ -66,7 +66,7 @@ jobs:
         # You only need to choose one method
 
         - name: Install Cosign
-          uses: sigstore/cosign-installer@v4.0.0
+          uses: sigstore/cosign-installer@v4.1.0
 
         - name: Verify with cosign
           run: |
