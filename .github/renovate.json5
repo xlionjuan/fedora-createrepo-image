@@ -20,7 +20,7 @@
       ],
       datasourceTemplate: 'github-tags',
       packageNameTemplate: '{{{depName}}}',
-      versioningTemplate: 'semver',
+      versioningTemplate: 'loose',
     },
   ],
   packageRules: [
