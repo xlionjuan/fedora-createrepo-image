@@ -44,7 +44,7 @@ jobs:
       container: ghcr.io/xlionjuan/fedora-createrepo-image:latest
       steps:
         - name: Checkout code
-          uses: actions/checkout@v4.0.0
+          uses: actions/checkout@v4.3.1
       .....
       .....
 ```
