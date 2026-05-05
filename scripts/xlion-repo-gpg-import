@@ -160,7 +160,7 @@ prepare_gnupghome() {
     if [[ "$CREATE_GNUPGHOME" == true ]]; then
       GNUPGHOME="$(mktemp -d)" || error "Failed to create temporary GNUPGHOME."
       export GNUPGHOME
-      info "Created temporary GNUPGHOME."
+      info "Created temporary GNUPGHOME: $GNUPGHOME"
     else
       error "GNUPGHOME is not set. Create it before importing the key, or use --create-gnupghome."
     fi
