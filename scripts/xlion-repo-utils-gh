@@ -55,6 +55,7 @@ Options:
                        If not specified in fetch mode, a temporary directory will be created
                        in /tmp using: mktemp -d /tmp/xlion-repo.XXXXX
   --verify             Verify downloaded files in workfolder using workfolder/sha256.txt.
+                       Files listed in sha256.txt but not present in workfolder are skipped.
                        Requires --workfolder.
   -h, --help           Show this help message.
 
@@ -137,7 +138,7 @@ fetch_mode() {
 
   echo "Fetching release information from GitHub API..."
   curl --retry 12 --retry-all-errors \
-    -s \
+    -fsSL \
     -o "$api_json" \
     "$api_url" || error "Failed to fetch GitHub API: $api_url"
 
@@ -153,13 +154,26 @@ fetch_mode() {
 
   jq -r '.assets[] | select(.browser_download_url != null) | .browser_download_url' "$api_json" > "$dl_urls_file"
 
-  # Extract SHA256 digests (digest format: "sha256:<hex>")
-  if jq -e '.assets[] | select(.digest != null)' "$api_json" >/dev/null 2>&1; then
-    # "sha256:" is 7 characters, so use [7:]
-    jq -r '.assets[] | select(.digest != null) | .digest[7:] + "  " + .name' "$api_json" > "$sha256_file"
+  local downloadable_asset_filter='.assets[] | select(.browser_download_url != null)'
+  local sha256_asset_filter='.assets[] | select(.browser_download_url != null and (.digest | type == "string" and test("^sha256:[A-Fa-f0-9]{64}$")))'
+  local digest_present_filter='.assets[] | select(.browser_download_url != null and .digest != null)'
+  local total_assets
+  local sha256_assets
+  local digest_present_assets
+
+  total_assets=$(jq -r "[$downloadable_asset_filter] | length" "$api_json")
+  sha256_assets=$(jq -r "[$sha256_asset_filter] | length" "$api_json")
+  digest_present_assets=$(jq -r "[$digest_present_filter] | length" "$api_json")
+
+  # Extract SHA256 digests (digest format: "sha256:<hex>"). GitHub release asset
+  # digests are expected to be all present and valid, or absent entirely.
+  if [[ "$sha256_assets" -eq "$total_assets" ]]; then
+    jq -r "$sha256_asset_filter | (.digest | sub(\"^sha256:\"; \"\")) + \"  \" + .name" "$api_json" > "$sha256_file"
     success "Created $sha256_file with SHA256 checksums"
+  elif [[ "$digest_present_assets" -gt 0 ]]; then
+    error "Incomplete or invalid SHA256 digest information: $sha256_assets/$total_assets downloadable asset(s) have valid SHA256 digests. API response saved to: $api_json"
   else
-    warn "No SHA256 digest information found in release assets. Skipping sha256.txt creation."
+    warn "No valid SHA256 digest information found in release assets. Skipping sha256.txt creation."
     rm -f "$sha256_file" 2>/dev/null || true
   fi
 
