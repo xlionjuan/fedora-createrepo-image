@@ -20,6 +20,7 @@ Good examples:
 - `xlion-repo-repackage-rpm` repackages RPM files with consistent fpm options.
 - `xlion-repo-rpm-createrepo` creates RPM repository metadata for one or more directories.
 - `xlion-repo-rpm-sign-repomd` signs RPM repository metadata for one or more directories.
+- `xlion-repo-rpm-sign-packages` signs RPM packages and verifies signatures.
 
 Avoid scripts that do too much, such as one command that downloads assets, repackages packages, signs metadata, publishes repositories, and uploads artifacts. Those workflows are easier to reason about when they remain separate steps.
 
@@ -423,6 +424,62 @@ scripts/xlion-repo-rpm-sign-repomd --help
 ```
 
 Functional testing should use a throwaway GPG key and a throwaway RPM repo directory with `repodata/repomd.xml`. Confirm that `repomd.xml.asc` is created.
+
+### `xlion-repo-rpm-sign-packages`
+
+`xlion-repo-rpm-sign-packages` signs `.rpm` files in one or more directories, verifies the resulting signatures with `rpmkeys -Kv`, and retries signing when verification fails.
+
+RustDesk RPM-style usage:
+
+```bash
+xlion-repo-rpm-sign-packages \
+  --dir wwwroot/latest \
+  --dir wwwroot/latest-suse \
+  --dir wwwroot/nightly \
+  --dir wwwroot/nightly-suse \
+  --gpg-key "$GPG_FINGERPRINT"
+```
+
+Single-directory usage:
+
+```bash
+xlion-repo-rpm-sign-packages --dir ~/.aptly/public/rpm --gpg-key "$GPG_FINGERPRINT"
+```
+
+Retry options:
+
+```bash
+xlion-repo-rpm-sign-packages \
+  --dir wwwroot/latest \
+  --gpg-key "$GPG_FINGERPRINT" \
+  --retry 3 \
+  --retry-sleep 2
+```
+
+What this script owns:
+
+- collecting direct child `.rpm` files from one or more directories
+- signing each RPM with `rpmsign --key-id`
+- verifying signatures with `rpmkeys -Kv`
+- checking that `rpmkeys -Kv` output contains the requested `--gpg-key`
+- retrying signing when verification fails
+
+What this script does not own:
+
+- importing GPG private keys
+- importing public keys into rpmkeys
+- creating RPM repository metadata
+- signing `repomd.xml`
+- deciding whether PR workflows should skip signing
+
+Minimum tests:
+
+```bash
+bash -n scripts/xlion-repo-rpm-sign-packages
+scripts/xlion-repo-rpm-sign-packages --help
+```
+
+Functional testing should use a throwaway RPM and a throwaway GPG key. Import the public key into rpmkeys before running this helper, then confirm `rpmkeys -Kv` reports the expected key.
 
 ## Adding a New Script
 

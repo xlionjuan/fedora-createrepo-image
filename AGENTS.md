@@ -149,6 +149,23 @@ xlion-repo-rpm-sign-repomd \
   --gpg-key "$GPG_FINGERPRINT"
 ```
 
+### `xlion-repo-rpm-sign-packages`
+
+Purpose: sign `.rpm` packages and verify signatures with `rpmkeys`.
+
+Design intent: this script owns RPM package signing, fingerprint verification, and retry logic. It must not import GPG keys, create RPM repository metadata, or sign `repomd.xml`.
+
+Common usage:
+
+```bash
+xlion-repo-rpm-sign-packages \
+  --dir wwwroot/latest \
+  --dir wwwroot/nightly \
+  --gpg-key "$GPG_FINGERPRINT"
+```
+
+Keep signing sequential unless there is a proven need to parallelize. GPG/rpmsign behavior is more sensitive than metadata generation.
+
 ## Testing Requirements
 
 Run at least syntax checks for every changed Bash script:
@@ -160,6 +177,7 @@ bash -n scripts/xlion-repo-repackage-deb
 bash -n scripts/xlion-repo-repackage-rpm
 bash -n scripts/xlion-repo-rpm-createrepo
 bash -n scripts/xlion-repo-rpm-sign-repomd
+bash -n scripts/xlion-repo-rpm-sign-packages
 ```
 
 For scripts with CLI help, verify help still renders:
@@ -171,6 +189,7 @@ scripts/xlion-repo-repackage-deb --help
 scripts/xlion-repo-repackage-rpm --help
 scripts/xlion-repo-rpm-createrepo --help
 scripts/xlion-repo-rpm-sign-repomd --help
+scripts/xlion-repo-rpm-sign-packages --help
 ```
 
 For `xlion-repo-gpg-import`, test with a temporary local GPG key instead of real secrets. The test should confirm that:

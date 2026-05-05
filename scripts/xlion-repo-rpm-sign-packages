@@ -1,0 +1,228 @@
+#!/bin/bash
+#
+# xlion-repo-rpm-sign-packages - Sign RPM packages and verify signatures.
+#
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+DIRS=()
+GPG_KEY=""
+RETRY=3
+RETRY_SLEEP=2
+
+error() {
+  echo -e "${RED}Error: $1${NC}" >&2
+  exit 1
+}
+
+info() {
+  echo -e "${BLUE}$1${NC}" >&2
+}
+
+success() {
+  echo -e "${GREEN}$1${NC}" >&2
+}
+
+warn() {
+  echo -e "${YELLOW}Warning: $1${NC}" >&2
+}
+
+show_help() {
+  cat << EOF
+xlion-repo-rpm-sign-packages - Sign RPM packages and verify signatures.
+
+Usage:
+  $(basename "$0") --dir DIR [--dir DIR ...] --gpg-key KEY [options]
+
+Options:
+  --dir DIR             Directory containing .rpm packages. Can be repeated.
+  --gpg-key KEY         GPG key identifier, key ID, or fingerprint used for signing and verification.
+  --retry COUNT         Retry count when signature verification fails. Default: 3.
+  --retry-sleep SEC     Seconds to sleep between retries. Default: 2.
+  -h, --help            Show this help message.
+
+Examples:
+  $(basename "$0") --dir wwwroot/latest --dir wwwroot/nightly --gpg-key "\$GPG_FINGERPRINT"
+
+Notes:
+  - RPM packages are signed sequentially, not concurrently.
+  - This tool expects the GPG key to already be imported.
+  - This tool expects the public key to already be imported into rpmkeys.
+  - Logs are printed to stderr.
+EOF
+}
+
+check_dependencies() {
+  local missing=()
+  local cmd
+
+  for cmd in "$@"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      missing+=("$cmd")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    error "Missing required CLI tool(s): ${missing[*]}"
+  fi
+}
+
+parse_non_negative_int() {
+  local name="$1"
+  local value="$2"
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    error "Option $name must be a non-negative integer: $value"
+  fi
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dir)
+        [[ $# -ge 2 ]] || error "Option --dir requires a value."
+        DIRS+=("$2")
+        shift 2
+        ;;
+      --gpg-key)
+        [[ $# -ge 2 ]] || error "Option --gpg-key requires a value."
+        GPG_KEY="$2"
+        shift 2
+        ;;
+      --retry)
+        [[ $# -ge 2 ]] || error "Option --retry requires a value."
+        parse_non_negative_int --retry "$2"
+        RETRY="$2"
+        shift 2
+        ;;
+      --retry-sleep)
+        [[ $# -ge 2 ]] || error "Option --retry-sleep requires a value."
+        parse_non_negative_int --retry-sleep "$2"
+        RETRY_SLEEP="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      *)
+        error "Unknown option: $1"
+        ;;
+    esac
+  done
+}
+
+resolve_existing_dir() {
+  local dir="$1"
+
+  if [[ ! -d "$dir" ]]; then
+    error "RPM package directory does not exist: $dir"
+  fi
+
+  (cd "$dir" && pwd -P) || error "Failed to resolve directory: $dir"
+}
+
+collect_rpms() {
+  local dir
+  local rpm_files=()
+  local dir_rpms=()
+
+  for dir in "${DIRS[@]}"; do
+    resolved_dir="$(resolve_existing_dir "$dir")"
+    mapfile -t dir_rpms < <(find "$resolved_dir" -maxdepth 1 -type f -name '*.rpm' | sort)
+
+    if [[ ${#dir_rpms[@]} -eq 0 ]]; then
+      error "No .rpm files found in directory: $resolved_dir"
+    fi
+
+    rpm_files+=("${dir_rpms[@]}")
+  done
+
+  printf '%s\n' "${rpm_files[@]}"
+}
+
+has_signature() {
+  local rpm_file="$1"
+
+  echo "== rpmkeys output for $rpm_file ==" >&2
+  rpmkeys -Kv "$rpm_file" >&2
+  echo "== end ==" >&2
+
+  rpmkeys -Kv "$rpm_file" | grep -qi -- "$GPG_KEY"
+}
+
+sign_rpm() {
+  local rpm_file="$1"
+
+  info "Signing: $rpm_file"
+  rpmsign --key-id "$GPG_KEY" --addsign "$rpm_file"
+}
+
+verify_or_retry() {
+  local rpm_file="$1"
+  local attempt=1
+
+  info "Checking: $rpm_file"
+
+  if has_signature "$rpm_file"; then
+    success "OK: $rpm_file"
+    return 0
+  fi
+
+  warn "Signature missing or invalid, starting retry: $rpm_file"
+
+  while (( attempt <= RETRY )); do
+    warn "Retry $attempt/$RETRY: $rpm_file"
+
+    if ! rpmsign --key-id "$GPG_KEY" --addsign "$rpm_file"; then
+      warn "rpmsign returned non-zero, re-checking signature anyway."
+    fi
+
+    if has_signature "$rpm_file"; then
+      success "OK after retry: $rpm_file"
+      return 0
+    fi
+
+    (( attempt++ ))
+    if (( attempt <= RETRY )); then
+      sleep "$RETRY_SLEEP"
+    fi
+  done
+
+  error "Signature invalid or missing after $RETRY retries: $rpm_file"
+}
+
+main() {
+  parse_args "$@"
+  check_dependencies find grep rpmkeys rpmsign sleep sort
+
+  if [[ ${#DIRS[@]} -eq 0 ]]; then
+    error "At least one --dir is required."
+  fi
+
+  if [[ -z "$GPG_KEY" ]]; then
+    error "Option --gpg-key is required."
+  fi
+
+  mapfile -t rpm_files < <(collect_rpms)
+
+  info "Signing ${#rpm_files[@]} RPM package(s)."
+  for rpm_file in "${rpm_files[@]}"; do
+    sign_rpm "$rpm_file"
+  done
+
+  info "Validating RPM signatures."
+  for rpm_file in "${rpm_files[@]}"; do
+    verify_or_retry "$rpm_file"
+  done
+
+  success "Signed and verified ${#rpm_files[@]} RPM package(s)."
+}
+
+main "$@"
