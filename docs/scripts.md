@@ -18,6 +18,8 @@ Good examples:
 - `xlion-repo-gpg-import` imports a GPG key and reports the fingerprint.
 - `xlion-repo-repackage-deb` repackages DEB files with consistent fpm options.
 - `xlion-repo-repackage-rpm` repackages RPM files with consistent fpm options.
+- `xlion-repo-rpm-createrepo` creates RPM repository metadata for one or more directories.
+- `xlion-repo-rpm-sign-repomd` signs RPM repository metadata for one or more directories.
 
 Avoid scripts that do too much, such as one command that downloads assets, repackages packages, signs metadata, publishes repositories, and uploads artifacts. Those workflows are easier to reason about when they remain separate steps.
 
@@ -324,6 +326,103 @@ scripts/xlion-repo-repackage-rpm --help
 ```
 
 Functional testing should use a small throwaway `.rpm` package. Confirm that the repackaged output exists, and when `--date-version` is used, confirm the output package version contains `+YYYYMMDD`.
+
+### `xlion-repo-rpm-createrepo`
+
+`xlion-repo-rpm-createrepo` runs `createrepo_c` for one or more RPM repository directories. Multiple `--dir` values are processed concurrently, and each background job is checked with `wait`.
+
+RustDesk RPM-style usage:
+
+```bash
+xlion-repo-rpm-createrepo \
+  --dir wwwroot/latest \
+  --dir wwwroot/latest-suse \
+  --dir wwwroot/nightly \
+  --dir wwwroot/nightly-suse
+```
+
+Single-directory usage:
+
+```bash
+xlion-repo-rpm-createrepo --dir ~/.aptly/public/rpm
+```
+
+Pass extra arguments to `createrepo_c` after `--`:
+
+```bash
+xlion-repo-rpm-createrepo --dir wwwroot/latest -- --update
+```
+
+What this script owns:
+
+- validating that each repo directory exists
+- warning when a repo directory has no direct `.rpm` files
+- running `createrepo_c` for each directory
+- running multiple directories concurrently
+- failing if any `createrepo_c` process fails
+
+What this script does not own:
+
+- splitting product-specific RPM directories
+- signing RPM packages
+- signing `repomd.xml`
+- uploading repository artifacts
+
+Minimum tests:
+
+```bash
+bash -n scripts/xlion-repo-rpm-createrepo
+scripts/xlion-repo-rpm-createrepo --help
+```
+
+Functional testing should create one or more throwaway directories containing small RPM packages, run the helper, and confirm each directory contains `repodata/repomd.xml`.
+
+### `xlion-repo-rpm-sign-repomd`
+
+`xlion-repo-rpm-sign-repomd` signs `repodata/repomd.xml` for one or more RPM repository directories. Multiple `--dir` values are processed concurrently, and each background job is checked with `wait`.
+
+RustDesk RPM-style usage:
+
+```bash
+xlion-repo-rpm-sign-repomd \
+  --dir wwwroot/latest \
+  --dir wwwroot/latest-suse \
+  --dir wwwroot/nightly \
+  --dir wwwroot/nightly-suse \
+  --gpg-key "$GPG_FINGERPRINT"
+```
+
+Single-directory usage:
+
+```bash
+xlion-repo-rpm-sign-repomd --dir ~/.aptly/public/rpm --gpg-key "$GPG_FINGERPRINT"
+```
+
+The `--gpg-key` value can be a fingerprint, key ID, or other GPG key identifier. The helper passes it to `gpg` as `--local-user` internally, but the public helper interface uses the clearer `--gpg-key` name.
+
+What this script owns:
+
+- validating that each repo directory exists
+- validating that each `repodata/repomd.xml` exists
+- signing each `repomd.xml` with `gpg --detach-sign --armor`
+- running multiple directories concurrently
+- failing if any signing process fails
+
+What this script does not own:
+
+- importing GPG keys
+- choosing the signing key secret name
+- signing RPM packages
+- creating RPM repository metadata
+
+Minimum tests:
+
+```bash
+bash -n scripts/xlion-repo-rpm-sign-repomd
+scripts/xlion-repo-rpm-sign-repomd --help
+```
+
+Functional testing should use a throwaway GPG key and a throwaway RPM repo directory with `repodata/repomd.xml`. Confirm that `repomd.xml.asc` is created.
 
 ## Adding a New Script
 

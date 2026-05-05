@@ -1,0 +1,146 @@
+#!/bin/bash
+#
+# xlion-repo-rpm-createrepo - Run createrepo_c for one or more RPM repo directories.
+#
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+DIRS=()
+CREATEREPO_ARGS=()
+
+error() {
+  echo -e "${RED}Error: $1${NC}" >&2
+  exit 1
+}
+
+info() {
+  echo -e "${BLUE}$1${NC}" >&2
+}
+
+success() {
+  echo -e "${GREEN}$1${NC}" >&2
+}
+
+warn() {
+  echo -e "${YELLOW}Warning: $1${NC}" >&2
+}
+
+show_help() {
+  cat << EOF
+xlion-repo-rpm-createrepo - Run createrepo_c for one or more RPM repo directories.
+
+Usage:
+  $(basename "$0") --dir DIR [--dir DIR ...] [-- CREATEREPO_C_ARGS...]
+
+Options:
+  --dir DIR       RPM repository directory. Can be repeated.
+  -h, --help      Show this help message.
+
+Examples:
+  $(basename "$0") --dir wwwroot/latest --dir wwwroot/nightly
+
+  $(basename "$0") --dir wwwroot/latest -- --update
+
+Notes:
+  - Multiple --dir values are processed concurrently.
+  - Arguments after -- are passed directly to createrepo_c before the directory path.
+  - Logs are printed to stderr.
+EOF
+}
+
+check_dependencies() {
+  local missing=()
+  local cmd
+
+  for cmd in "$@"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      missing+=("$cmd")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    error "Missing required CLI tool(s): ${missing[*]}"
+  fi
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dir)
+        [[ $# -ge 2 ]] || error "Option --dir requires a value."
+        DIRS+=("$2")
+        shift 2
+        ;;
+      --)
+        shift
+        CREATEREPO_ARGS+=("$@")
+        break
+        ;;
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      *)
+        error "Unknown option: $1"
+        ;;
+    esac
+  done
+}
+
+resolve_existing_dir() {
+  local dir="$1"
+
+  if [[ ! -d "$dir" ]]; then
+    error "RPM repository directory does not exist: $dir"
+  fi
+
+  (cd "$dir" && pwd -P) || error "Failed to resolve directory: $dir"
+}
+
+validate_dir_has_rpms() {
+  local dir="$1"
+
+  if ! compgen -G "$dir/*.rpm" >/dev/null; then
+    warn "No .rpm files found directly under: $dir"
+  fi
+}
+
+main() {
+  parse_args "$@"
+  check_dependencies createrepo_c
+
+  if [[ ${#DIRS[@]} -eq 0 ]]; then
+    error "At least one --dir is required."
+  fi
+
+  resolved_dirs=()
+  for dir in "${DIRS[@]}"; do
+    resolved_dir="$(resolve_existing_dir "$dir")"
+    validate_dir_has_rpms "$resolved_dir"
+    resolved_dirs+=("$resolved_dir")
+  done
+
+  pids=()
+
+  for dir in "${resolved_dirs[@]}"; do
+    (
+      info "Running createrepo_c on: $dir"
+      createrepo_c "${CREATEREPO_ARGS[@]}" "$dir"
+    ) &
+    pids+=("$!")
+  done
+
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+  done
+
+  success "Created RPM metadata for ${#resolved_dirs[@]} director$( [[ ${#resolved_dirs[@]} -eq 1 ]] && printf 'y' || printf 'ies' )."
+}
+
+main "$@"

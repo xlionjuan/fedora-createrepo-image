@@ -1,0 +1,143 @@
+#!/bin/bash
+#
+# xlion-repo-rpm-sign-repomd - Sign repodata/repomd.xml for one or more RPM repo directories.
+#
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+DIRS=()
+GPG_KEY=""
+
+error() {
+  echo -e "${RED}Error: $1${NC}" >&2
+  exit 1
+}
+
+info() {
+  echo -e "${BLUE}$1${NC}" >&2
+}
+
+success() {
+  echo -e "${GREEN}$1${NC}" >&2
+}
+
+show_help() {
+  cat << EOF
+xlion-repo-rpm-sign-repomd - Sign repodata/repomd.xml for one or more RPM repo directories.
+
+Usage:
+  $(basename "$0") --dir DIR [--dir DIR ...] --gpg-key KEY
+
+Options:
+  --dir DIR       RPM repository directory. Can be repeated.
+  --gpg-key KEY   GPG key identifier, key ID, or fingerprint used for signing.
+  -h, --help      Show this help message.
+
+Examples:
+  $(basename "$0") --dir wwwroot/latest --dir wwwroot/nightly --gpg-key "\$GPG_FINGERPRINT"
+
+Notes:
+  - Multiple --dir values are processed concurrently.
+  - The --gpg-key value is passed to gpg as --local-user.
+  - Logs are printed to stderr.
+EOF
+}
+
+check_dependencies() {
+  local missing=()
+  local cmd
+
+  for cmd in "$@"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      missing+=("$cmd")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    error "Missing required CLI tool(s): ${missing[*]}"
+  fi
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dir)
+        [[ $# -ge 2 ]] || error "Option --dir requires a value."
+        DIRS+=("$2")
+        shift 2
+        ;;
+      --gpg-key)
+        [[ $# -ge 2 ]] || error "Option --gpg-key requires a value."
+        GPG_KEY="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      *)
+        error "Unknown option: $1"
+        ;;
+    esac
+  done
+}
+
+resolve_repomd_xml() {
+  local dir="$1"
+  local resolved_dir
+  local repomd_xml
+
+  if [[ ! -d "$dir" ]]; then
+    error "RPM repository directory does not exist: $dir"
+  fi
+
+  resolved_dir="$(cd "$dir" && pwd -P)" || error "Failed to resolve directory: $dir"
+  repomd_xml="$resolved_dir/repodata/repomd.xml"
+
+  if [[ ! -f "$repomd_xml" ]]; then
+    error "repomd.xml does not exist: $repomd_xml"
+  fi
+
+  printf '%s' "$repomd_xml"
+}
+
+main() {
+  parse_args "$@"
+  check_dependencies gpg
+
+  if [[ ${#DIRS[@]} -eq 0 ]]; then
+    error "At least one --dir is required."
+  fi
+
+  if [[ -z "$GPG_KEY" ]]; then
+    error "Option --gpg-key is required."
+  fi
+
+  repomd_files=()
+  for dir in "${DIRS[@]}"; do
+    repomd_files+=("$(resolve_repomd_xml "$dir")")
+  done
+
+  pids=()
+
+  for repomd_xml in "${repomd_files[@]}"; do
+    (
+      info "Signing metadata: $repomd_xml"
+      gpg --batch --yes --detach-sign --armor --local-user "$GPG_KEY" "$repomd_xml"
+    ) &
+    pids+=("$!")
+  done
+
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+  done
+
+  success "Signed ${#repomd_files[@]} repomd.xml file(s)."
+}
+
+main "$@"

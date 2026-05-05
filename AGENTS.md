@@ -118,6 +118,37 @@ Nightly/date-version usage:
 xlion-repo-repackage-rpm --source-dir wwwroot/nightly/ori --date-version --remove-source-dir
 ```
 
+### `xlion-repo-rpm-createrepo`
+
+Purpose: run `createrepo_c` for one or more RPM repository directories.
+
+Design intent: this script owns the concurrent multi-directory `createrepo_c` loop only. It must not sign RPM packages, sign `repomd.xml`, or decide product-specific directory layouts.
+
+Common usage:
+
+```bash
+xlion-repo-rpm-createrepo \
+  --dir wwwroot/latest \
+  --dir wwwroot/latest-suse \
+  --dir wwwroot/nightly \
+  --dir wwwroot/nightly-suse
+```
+
+### `xlion-repo-rpm-sign-repomd`
+
+Purpose: sign `repodata/repomd.xml` for one or more RPM repository directories.
+
+Design intent: this script owns the concurrent multi-directory `gpg --detach-sign --armor` loop only. It takes a clear `--gpg-key` argument and internally passes that value to `gpg --local-user`.
+
+Common usage:
+
+```bash
+xlion-repo-rpm-sign-repomd \
+  --dir wwwroot/latest \
+  --dir wwwroot/nightly \
+  --gpg-key "$GPG_FINGERPRINT"
+```
+
 ## Testing Requirements
 
 Run at least syntax checks for every changed Bash script:
@@ -127,6 +158,8 @@ bash -n scripts/xlion-repo-utils-gh
 bash -n scripts/xlion-repo-gpg-import
 bash -n scripts/xlion-repo-repackage-deb
 bash -n scripts/xlion-repo-repackage-rpm
+bash -n scripts/xlion-repo-rpm-createrepo
+bash -n scripts/xlion-repo-rpm-sign-repomd
 ```
 
 For scripts with CLI help, verify help still renders:
@@ -136,6 +169,8 @@ scripts/xlion-repo-utils-gh --help
 scripts/xlion-repo-gpg-import --help
 scripts/xlion-repo-repackage-deb --help
 scripts/xlion-repo-repackage-rpm --help
+scripts/xlion-repo-rpm-createrepo --help
+scripts/xlion-repo-rpm-sign-repomd --help
 ```
 
 For `xlion-repo-gpg-import`, test with a temporary local GPG key instead of real secrets. The test should confirm that:
