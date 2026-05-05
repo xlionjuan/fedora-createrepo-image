@@ -59,7 +59,7 @@ check_dependencies() {
   local cmd
 
   for cmd in "$@"; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
+    if ! command -v "$cmd" > /dev/null 2>&1; then
       missing+=("$cmd")
     fi
   done
@@ -82,7 +82,7 @@ parse_args() {
         CREATEREPO_ARGS+=("$@")
         break
         ;;
-      -h|--help)
+      -h | --help)
         show_help
         exit 0
         ;;
@@ -106,7 +106,7 @@ resolve_existing_dir() {
 validate_dir_has_rpms() {
   local dir="$1"
 
-  if ! compgen -G "$dir/*.rpm" >/dev/null; then
+  if ! compgen -G "$dir/*.rpm" > /dev/null; then
     warn "No .rpm files found directly under: $dir"
   fi
 }
@@ -140,7 +140,7 @@ main() {
     wait "$pid"
   done
 
-  success "Created RPM metadata for ${#resolved_dirs[@]} director$( [[ ${#resolved_dirs[@]} -eq 1 ]] && printf 'y' || printf 'ies' )."
+  success "Created RPM metadata for ${#resolved_dirs[@]} director$([[ ${#resolved_dirs[@]} -eq 1 ]] && printf 'y' || printf 'ies')."
 }
 
 main "$@"

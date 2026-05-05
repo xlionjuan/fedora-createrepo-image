@@ -62,7 +62,7 @@ check_dependencies() {
   local cmd
 
   for cmd in "$@"; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
+    if ! command -v "$cmd" > /dev/null 2>&1; then
       missing+=("$cmd")
     fi
   done
@@ -103,7 +103,7 @@ parse_args() {
         REMOVE_SOURCE_DIR=true
         shift
         ;;
-      -h|--help)
+      -h | --help)
         show_help
         exit 0
         ;;

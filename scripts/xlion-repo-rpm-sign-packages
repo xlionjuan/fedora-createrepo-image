@@ -63,7 +63,7 @@ check_dependencies() {
   local cmd
 
   for cmd in "$@"; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
+    if ! command -v "$cmd" > /dev/null 2>&1; then
       missing+=("$cmd")
     fi
   done
@@ -107,7 +107,7 @@ parse_args() {
         RETRY_SLEEP="$2"
         shift 2
         ;;
-      -h|--help)
+      -h | --help)
         show_help
         exit 0
         ;;
@@ -177,7 +177,7 @@ verify_or_retry() {
 
   warn "Signature missing or invalid, starting retry: $rpm_file"
 
-  while (( attempt <= RETRY )); do
+  while ((attempt <= RETRY)); do
     warn "Retry $attempt/$RETRY: $rpm_file"
 
     if ! rpmsign --key-id "$GPG_KEY" --addsign "$rpm_file"; then
@@ -189,8 +189,8 @@ verify_or_retry() {
       return 0
     fi
 
-    (( attempt++ ))
-    if (( attempt <= RETRY )); then
+    ((attempt++))
+    if ((attempt <= RETRY)); then
       sleep "$RETRY_SLEEP"
     fi
   done

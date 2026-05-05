@@ -87,7 +87,7 @@ check_dependencies() {
   local cmd
 
   for cmd in "$@"; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
+    if ! command -v "$cmd" > /dev/null 2>&1; then
       missing+=("$cmd")
     fi
   done
@@ -142,13 +142,13 @@ fetch_mode() {
     -o "$api_json" \
     "$api_url" || error "Failed to fetch GitHub API: $api_url"
 
-  if jq -e -r '.message // empty' "$api_json" >/dev/null 2>&1; then
+  if jq -e -r '.message // empty' "$api_json" > /dev/null 2>&1; then
     local msg
     msg=$(jq -r '.message' "$api_json")
     error "GitHub API error: $msg"
   fi
 
-  if ! jq -e '.assets[] | select(.browser_download_url != null)' "$api_json" >/dev/null 2>&1; then
+  if ! jq -e '.assets[] | select(.browser_download_url != null)' "$api_json" > /dev/null 2>&1; then
     error "No assets with browser_download_url found in release. API response saved to: $api_json"
   fi
 
@@ -174,7 +174,7 @@ fetch_mode() {
     error "Incomplete or invalid SHA256 digest information: $sha256_assets/$total_assets downloadable asset(s) have valid SHA256 digests. API response saved to: $api_json"
   else
     warn "No valid SHA256 digest information found in release assets. Skipping sha256.txt creation."
-    rm -f "$sha256_file" 2>/dev/null || true
+    rm -f "$sha256_file" 2> /dev/null || true
   fi
 
   echo ""
@@ -199,7 +199,7 @@ verify_mode() {
     error "Workfolder does not exist: $WORKFOLDER"
   fi
 
-  WORKFOLDER=$( (cd "$WORKFOLDER" && pwd -P) ) || error "Failed to resolve absolute path for workfolder: $WORKFOLDER"
+  WORKFOLDER=$( (cd "$WORKFOLDER" && pwd -P)) || error "Failed to resolve absolute path for workfolder: $WORKFOLDER"
 
   echo "------------------------------"
   echo "XLion repo utils (GitHub)"
@@ -232,7 +232,7 @@ verify_mode() {
 
     # Expect format: <hash><two spaces><filename>
     if [[ "$line" != *"  "* ]]; then
-      ((malformed+=1))
+      ((malformed += 1))
       warn "Malformed checksum line (missing double-space separator): $line"
       continue
     fi
@@ -242,24 +242,24 @@ verify_mode() {
     filename="${line#*  }"
 
     if [[ -z "$hash" || -z "$filename" ]]; then
-      ((malformed+=1))
+      ((malformed += 1))
       warn "Malformed checksum line: $line"
       continue
     fi
 
-    ((total+=1))
+    ((total += 1))
 
     if [[ ! -f "$WORKFOLDER/$filename" ]]; then
-      ((skipped+=1))
+      ((skipped += 1))
       echo -e "  ${YELLOW}⊘${NC} $filename (file not found)"
       continue
     fi
 
-    if printf '%s  %s\n' "$hash" "$filename" | (cd "$WORKFOLDER" && sha256sum -c - >/dev/null 2>&1); then
-      ((passed+=1))
+    if printf '%s  %s\n' "$hash" "$filename" | (cd "$WORKFOLDER" && sha256sum -c - > /dev/null 2>&1); then
+      ((passed += 1))
       echo -e "  ${GREEN}✓${NC} $filename"
     else
-      ((failed+=1))
+      ((failed += 1))
       echo -e "  ${RED}✗${NC} $filename"
     fi
   done < "$sha256_file"
@@ -316,7 +316,7 @@ main() {
         VERIFY_MODE=true
         shift
         ;;
-      -h|--help)
+      -h | --help)
         show_help
         exit 0
         ;;

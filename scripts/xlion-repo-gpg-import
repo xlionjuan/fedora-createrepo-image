@@ -81,7 +81,7 @@ check_dependencies() {
   local cmd
 
   for cmd in "$@"; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
+    if ! command -v "$cmd" > /dev/null 2>&1; then
       missing+=("$cmd")
     fi
   done
@@ -128,7 +128,7 @@ parse_args() {
         RPMKEYS_IMPORT=true
         shift
         ;;
-      -h|--help)
+      -h | --help)
         show_help
         exit 0
         ;;
@@ -219,7 +219,7 @@ import_key() {
   status_file="$(mktemp)" || error "Failed to create temporary status file."
   trap 'rm -f "$status_file"' RETURN
 
-  if ! read_key_data | gpg --batch --yes --status-fd=1 --import > "$status_file" 2>/dev/null; then
+  if ! read_key_data | gpg --batch --yes --status-fd=1 --import > "$status_file" 2> /dev/null; then
     error "Failed to import GPG private key."
   fi
 
@@ -234,7 +234,7 @@ import_key() {
     error "Failed to parse imported key fingerprint."
   fi
 
-  if ! gpg --batch --list-secret-keys "$fingerprint" >/dev/null 2>&1; then
+  if ! gpg --batch --list-secret-keys "$fingerprint" > /dev/null 2>&1; then
     error "Imported fingerprint does not refer to an available secret key: $fingerprint"
   fi
 
