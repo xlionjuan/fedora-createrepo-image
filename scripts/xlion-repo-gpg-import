@@ -1,0 +1,282 @@
+#!/bin/bash
+#
+# xlion-repo-gpg-import - Import a GPG private key and report its fingerprint.
+#
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+KEY_ENV=""
+USE_STDIN=false
+WRITE_GITHUB_ENV=false
+WRITE_GITHUB_OUTPUT=false
+OUTPUT_NAME="GPG_FINGERPRINT"
+CREATE_GNUPGHOME=false
+RPMKEYS_IMPORT=false
+PRINT_GNUPGHOME=false
+
+error() {
+  echo -e "${RED}Error: $1${NC}" >&2
+  exit 1
+}
+
+info() {
+  echo -e "${BLUE}$1${NC}" >&2
+}
+
+success() {
+  echo -e "${GREEN}$1${NC}" >&2
+}
+
+warn() {
+  echo -e "${YELLOW}Warning: $1${NC}" >&2
+}
+
+show_help() {
+  cat << EOF
+xlion-repo-gpg-import - Import a GPG private key and report its fingerprint.
+
+Usage:
+  $(basename "$0") --key-env ENV_NAME [options]
+  $(basename "$0") --stdin [options]
+
+Options:
+  --key-env ENV_NAME       Read the private key from the named environment variable.
+  --stdin                  Read the private key from stdin.
+  --github-env             Write the fingerprint to \$GITHUB_ENV.
+  --github-output          Write the fingerprint to \$GITHUB_OUTPUT.
+  --name NAME              Output variable name (default: GPG_FINGERPRINT).
+  --create-gnupghome       Create a temporary GNUPGHOME when GNUPGHOME is not already set.
+                           When used with --github-env, GNUPGHOME and GPG_TTY= are also
+                           written to \$GITHUB_ENV.
+  --print-gnupghome        Print GNUPGHOME to stderr after import. Useful for debugging.
+  --rpmkeys-import         Import the public key into rpmkeys after GPG import.
+  -h, --help               Show this help message.
+
+Output:
+  The imported secret key fingerprint is printed to stdout.
+  All logs and errors are printed to stderr.
+
+Examples:
+  $(basename "$0") --key-env GPG_PRIVATE_KEY --github-env
+
+  $(basename "$0") --key-env GPG_PRIVATE_KEY --github-env --rpmkeys-import
+
+  fingerprint="\$($(basename "$0") --key-env GPG_PRIVATE_KEY)"
+
+Notes:
+  - This tool does not publish repositories or sign packages.
+  - It does not delete GNUPGHOME, because later workflow steps usually need the key.
+  - Use --create-gnupghome --github-env to replace a separate GPG preparation step.
+EOF
+}
+
+check_dependencies() {
+  local missing=()
+  local cmd
+
+  for cmd in "$@"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      missing+=("$cmd")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    error "Missing required CLI tool(s): ${missing[*]}"
+  fi
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --key-env)
+        [[ $# -ge 2 ]] || error "Option --key-env requires a value."
+        KEY_ENV="$2"
+        shift 2
+        ;;
+      --stdin)
+        USE_STDIN=true
+        shift
+        ;;
+      --github-env)
+        WRITE_GITHUB_ENV=true
+        shift
+        ;;
+      --github-output)
+        WRITE_GITHUB_OUTPUT=true
+        shift
+        ;;
+      --name)
+        [[ $# -ge 2 ]] || error "Option --name requires a value."
+        OUTPUT_NAME="$2"
+        shift 2
+        ;;
+      --create-gnupghome)
+        CREATE_GNUPGHOME=true
+        shift
+        ;;
+      --print-gnupghome)
+        PRINT_GNUPGHOME=true
+        shift
+        ;;
+      --rpmkeys-import)
+        RPMKEYS_IMPORT=true
+        shift
+        ;;
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      *)
+        error "Unknown option: $1"
+        ;;
+    esac
+  done
+}
+
+validate_args() {
+  if [[ "$USE_STDIN" == true && -n "$KEY_ENV" ]]; then
+    error "Use only one of --stdin or --key-env."
+  fi
+
+  if [[ "$USE_STDIN" == false && -z "$KEY_ENV" ]]; then
+    error "Option --key-env or --stdin is required."
+  fi
+
+  if [[ ! "$OUTPUT_NAME" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    error "Invalid output name: $OUTPUT_NAME"
+  fi
+}
+
+prepare_gnupghome() {
+  umask 077
+
+  if [[ -z "${GNUPGHOME:-}" ]]; then
+    if [[ "$CREATE_GNUPGHOME" == true ]]; then
+      GNUPGHOME="$(mktemp -d)" || error "Failed to create temporary GNUPGHOME."
+      export GNUPGHOME
+      info "Created temporary GNUPGHOME."
+    else
+      error "GNUPGHOME is not set. Create it before importing the key, or use --create-gnupghome."
+    fi
+  fi
+
+  mkdir -p "$GNUPGHOME" || error "Failed to create GNUPGHOME: $GNUPGHOME"
+  chmod 700 "$GNUPGHOME" || error "Failed to chmod GNUPGHOME: $GNUPGHOME"
+
+  if [[ "$CREATE_GNUPGHOME" == true && "$WRITE_GITHUB_ENV" == true ]]; then
+    : "${GITHUB_ENV:?GITHUB_ENV is not set}"
+    echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+    echo "GPG_TTY=" >> "$GITHUB_ENV"
+  fi
+
+  if [[ "$PRINT_GNUPGHOME" == true ]]; then
+    info "GNUPGHOME: $GNUPGHOME"
+  fi
+}
+
+read_key_data() {
+  if [[ "$USE_STDIN" == true ]]; then
+    cat
+    return
+  fi
+
+  local key_data="${!KEY_ENV:-}"
+  if [[ -z "$key_data" ]]; then
+    error "Environment variable '$KEY_ENV' is empty or not set."
+  fi
+
+  printf '%s' "$key_data"
+}
+
+parse_import_fingerprint() {
+  local status_file="$1"
+  local fingerprint=""
+
+  fingerprint="$(awk '/^\[GNUPG:\] IMPORT_OK/ {print $4; exit}' "$status_file")"
+
+  if [[ -z "$fingerprint" ]]; then
+    fingerprint="$(awk '/^\[GNUPG:\] KEY_CONSIDERED/ {print $3; exit}' "$status_file")"
+  fi
+
+  if [[ -z "$fingerprint" ]]; then
+    mapfile -t secret_fingerprints < <(gpg --batch --list-secret-keys --with-colons | awk -F: '$1 == "fpr" {print $10}')
+    if [[ ${#secret_fingerprints[@]} -eq 1 ]]; then
+      fingerprint="${secret_fingerprints[0]}"
+    fi
+  fi
+
+  printf '%s' "$fingerprint"
+}
+
+import_key() {
+  local status_file
+  status_file="$(mktemp)" || error "Failed to create temporary status file."
+  trap 'rm -f "$status_file"' RETURN
+
+  if ! read_key_data | gpg --batch --yes --status-fd=1 --import > "$status_file" 2>/dev/null; then
+    error "Failed to import GPG private key."
+  fi
+
+  # Some GPG versions may print multiple status records on one line.
+  # Normalize that before parsing.
+  sed -i 's/\[GNUPG:\]/\n[GNUPG:]/g' "$status_file"
+
+  local fingerprint
+  fingerprint="$(parse_import_fingerprint "$status_file")"
+
+  if [[ -z "$fingerprint" ]]; then
+    error "Failed to parse imported key fingerprint."
+  fi
+
+  if ! gpg --batch --list-secret-keys "$fingerprint" >/dev/null 2>&1; then
+    error "Imported fingerprint does not refer to an available secret key: $fingerprint"
+  fi
+
+  printf '%s' "$fingerprint"
+}
+
+write_outputs() {
+  local fingerprint="$1"
+
+  if [[ "$WRITE_GITHUB_ENV" == true ]]; then
+    : "${GITHUB_ENV:?GITHUB_ENV is not set}"
+    echo "${OUTPUT_NAME}=${fingerprint}" >> "$GITHUB_ENV"
+  fi
+
+  if [[ "$WRITE_GITHUB_OUTPUT" == true ]]; then
+    : "${GITHUB_OUTPUT:?GITHUB_OUTPUT is not set}"
+    echo "${OUTPUT_NAME}=${fingerprint}" >> "$GITHUB_OUTPUT"
+  fi
+}
+
+main() {
+  parse_args "$@"
+  validate_args
+
+  check_dependencies gpg awk mktemp chmod mkdir
+  if [[ "$RPMKEYS_IMPORT" == true ]]; then
+    check_dependencies rpmkeys
+  fi
+
+  prepare_gnupghome
+
+  local fingerprint
+  fingerprint="$(import_key)"
+
+  if [[ "$RPMKEYS_IMPORT" == true ]]; then
+    gpg --batch --armor --export "$fingerprint" | rpmkeys --import -
+    success "Imported public key into rpmkeys."
+  fi
+
+  write_outputs "$fingerprint"
+  success "Imported GPG private key: $fingerprint"
+  printf '%s\n' "$fingerprint"
+}
+
+main "$@"
