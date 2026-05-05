@@ -16,6 +16,8 @@ Good examples:
 
 - `xlion-repo-utils-gh` handles GitHub release metadata and checksum verification.
 - `xlion-repo-gpg-import` imports a GPG key and reports the fingerprint.
+- `xlion-repo-repackage-deb` repackages DEB files with consistent fpm options.
+- `xlion-repo-repackage-rpm` repackages RPM files with consistent fpm options.
 
 Avoid scripts that do too much, such as one command that downloads assets, repackages packages, signs metadata, publishes repositories, and uploads artifacts. Those workflows are easier to reason about when they remain separate steps.
 
@@ -222,6 +224,106 @@ GNUPGHOME="$imported_home" gpg --batch --list-secret-keys "$fingerprint" >/dev/n
 
 rm -rf "$tmp_src" "$imported_home" "$tmp_env"
 ```
+
+### `xlion-repo-repackage-deb`
+
+`xlion-repo-repackage-deb` repackages `.deb` files from a source directory into a target directory.
+
+Latest-style repackaging without changing the package version:
+
+```bash
+xlion-repo-repackage-deb \
+  --source-dir ori \
+  --target-dir . \
+  --deb-recommends xlion-repo-archive-keyring \
+  --remove-source-dir
+```
+
+Nightly-style repackaging with a date suffix:
+
+```bash
+xlion-repo-repackage-deb \
+  --source-dir ori \
+  --target-dir . \
+  --date-version \
+  --deb-recommends xlion-repo-archive-keyring \
+  --remove-source-dir
+```
+
+This turns an original version such as `1.2.3` into `1.2.3+YYYYMMDD`.
+
+What this script owns:
+
+- scanning one source directory for `.deb` files
+- reading original package versions with `dpkg-deb`
+- calling `fpm -t deb -s deb`
+- applying `--deb-compression`
+- optionally adding `--deb-recommends`
+- optionally removing the source directory after success
+
+What this script does not own:
+
+- downloading upstream release assets
+- deciding which architecture packages should exist
+- creating APT repository metadata
+- signing APT repositories
+
+Minimum tests:
+
+```bash
+bash -n scripts/xlion-repo-repackage-deb
+scripts/xlion-repo-repackage-deb --help
+```
+
+Functional testing should use a small throwaway `.deb` package. Confirm that the repackaged output exists, and when `--date-version` is used, confirm the output package `Version` contains `+YYYYMMDD`.
+
+### `xlion-repo-repackage-rpm`
+
+`xlion-repo-repackage-rpm` repackages `.rpm` files from a source directory into a target directory. By default, the target directory is the parent of the source directory. This matches common `wwwroot/channel/ori` usage.
+
+Latest-style repackaging without changing the package version:
+
+```bash
+xlion-repo-repackage-rpm \
+  --source-dir wwwroot/latest/ori \
+  --remove-source-dir
+```
+
+Nightly-style repackaging with a date suffix:
+
+```bash
+xlion-repo-repackage-rpm \
+  --source-dir wwwroot/nightly/ori \
+  --date-version \
+  --remove-source-dir
+```
+
+This turns an original version such as `1.2.3` into `1.2.3+YYYYMMDD`.
+
+What this script owns:
+
+- scanning one source directory for `.rpm` files
+- reading original package versions with `rpm -qp`
+- calling `fpm -t rpm -s rpm`
+- applying `--rpm-compression`
+- optionally removing the source directory after success
+
+What this script does not own:
+
+- splitting SUSE and non-SUSE packages
+- creating RPM repository metadata
+- importing GPG keys
+- signing RPM packages
+- signing `repomd.xml`
+
+Minimum tests:
+
+```bash
+bash -n scripts/xlion-repo-repackage-rpm
+scripts/xlion-repo-repackage-rpm --help
+```
+
+Functional testing should use a small throwaway `.rpm` package. Confirm that the repackaged output exists, and when `--date-version` is used, confirm the output package version contains `+YYYYMMDD`.
 
 ## Adding a New Script
 

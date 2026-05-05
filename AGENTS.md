@@ -73,6 +73,51 @@ Expected output behavior:
 - `--github-env` writes the fingerprint to `$GITHUB_ENV`.
 - `--create-gnupghome --github-env` also writes `GNUPGHOME=...` and `GPG_TTY=` to `$GITHUB_ENV`.
 
+### `xlion-repo-repackage-deb`
+
+Purpose: repackage `.deb` files with `fpm`, optionally appending a date suffix to the original package version and adding Debian `Recommends` metadata.
+
+Design intent: this script owns repeatable DEB repackaging mechanics only. It must not download release assets, create APT metadata, import signing keys, or publish repositories.
+
+Common usage:
+
+```bash
+xlion-repo-repackage-deb \
+  --source-dir ori \
+  --target-dir . \
+  --deb-recommends xlion-repo-archive-keyring \
+  --remove-source-dir
+```
+
+Nightly/date-version usage:
+
+```bash
+xlion-repo-repackage-deb \
+  --source-dir ori \
+  --target-dir . \
+  --date-version \
+  --deb-recommends xlion-repo-archive-keyring \
+  --remove-source-dir
+```
+
+### `xlion-repo-repackage-rpm`
+
+Purpose: repackage `.rpm` files with `fpm`, optionally appending a date suffix to the original package version.
+
+Design intent: this script owns repeatable RPM repackaging mechanics only. It must not split product-specific RPM layouts, create `createrepo_c` metadata, import signing keys, or sign packages.
+
+Common usage:
+
+```bash
+xlion-repo-repackage-rpm --source-dir wwwroot/latest/ori --remove-source-dir
+```
+
+Nightly/date-version usage:
+
+```bash
+xlion-repo-repackage-rpm --source-dir wwwroot/nightly/ori --date-version --remove-source-dir
+```
+
 ## Testing Requirements
 
 Run at least syntax checks for every changed Bash script:
@@ -80,6 +125,8 @@ Run at least syntax checks for every changed Bash script:
 ```bash
 bash -n scripts/xlion-repo-utils-gh
 bash -n scripts/xlion-repo-gpg-import
+bash -n scripts/xlion-repo-repackage-deb
+bash -n scripts/xlion-repo-repackage-rpm
 ```
 
 For scripts with CLI help, verify help still renders:
@@ -87,6 +134,8 @@ For scripts with CLI help, verify help still renders:
 ```bash
 scripts/xlion-repo-utils-gh --help
 scripts/xlion-repo-gpg-import --help
+scripts/xlion-repo-repackage-deb --help
+scripts/xlion-repo-repackage-rpm --help
 ```
 
 For `xlion-repo-gpg-import`, test with a temporary local GPG key instead of real secrets. The test should confirm that:
