@@ -154,7 +154,10 @@ has_signature() {
   rpmkeys -Kv "$rpm_file" >&2
   echo "== end ==" >&2
 
-  rpmkeys -Kv "$rpm_file" | grep -qi -- "$GPG_KEY"
+  # Verify signature structurally: query RPM metadata for Signature field.
+  # rpm -qip produces structured output; grepping only the Signature line
+  # avoids matching filename or free-text output that may contain the key ID.
+  rpm -qip "$rpm_file" 2>/dev/null | grep -qi "Signature.*${GPG_KEY}\b"
 }
 
 sign_rpm() {
