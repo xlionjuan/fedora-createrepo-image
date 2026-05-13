@@ -203,7 +203,7 @@ verify_or_retry() {
 
 main() {
   parse_args "$@"
-  check_dependencies find grep rpmkeys rpmsign sleep sort
+  check_dependencies find grep rpm rpmkeys rpmsign sleep sort
 
   if [[ ${#DIRS[@]} -eq 0 ]]; then
     error "At least one --dir is required."
