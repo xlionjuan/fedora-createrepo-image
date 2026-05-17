@@ -237,6 +237,7 @@ jobs:
           echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
 
       - name: Create and push manifest (latest) via imagetools
+        id: digest-latest
         env:
           IMAGE: ghcr.io/${{ github.repository }}
           AMD64: ${{ steps.read.outputs.amd64_digest }}
@@ -245,10 +246,16 @@ jobs:
           set -euo pipefail
           docker buildx imagetools create \
             -t "${IMAGE}:latest" \
+            --metadata-file /tmp/latest-metadata.json \
             "${IMAGE}@${AMD64}" \
             "${IMAGE}@${ARM64}"
 
+          DIGEST="$(jq -r '."containerimage.descriptor".digest // empty' /tmp/latest-metadata.json)"
+          test -n "$DIGEST"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
       - name: Create and push manifest (time) via imagetools
+        id: digest-time
         env:
           IMAGE: ghcr.io/${{ github.repository }}
           AMD64: ${{ steps.read.outputs.amd64_digest }}
@@ -258,30 +265,11 @@ jobs:
           set -euo pipefail
           docker buildx imagetools create \
             -t "${IMAGE}:${DATE}" \
+            --metadata-file /tmp/time-metadata.json \
             "${IMAGE}@${AMD64}" \
             "${IMAGE}@${ARM64}"
 
-      # Hope to get rid of this in the future
-      # Otherwise, the digest can't being guaranteed
-      # https://github.com/docker/buildx/issues/2407
-
-      - name: Get manifest digest (latest)
-        id: digest-latest
-        run: |
-          set -euo pipefail
-          IMAGE="ghcr.io/${{ github.repository }}"
-          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:latest" --format '{{json .Manifest}}' | jq -r '.digest // empty')"
-          test -n "$DIGEST"
-          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
-
-      - name: Get manifest digest (time)
-        id: digest-time
-        env:
-          DATE: ${{ steps.get-date.outputs.date }}
-        run: |
-          set -euo pipefail
-          IMAGE="ghcr.io/${{ github.repository }}"
-          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${DATE}" --format '{{json .Manifest}}' | jq -r '.digest // empty')"
+          DIGEST="$(jq -r '."containerimage.descriptor".digest // empty' /tmp/time-metadata.json)"
           test -n "$DIGEST"
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           
