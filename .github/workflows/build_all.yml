@@ -144,6 +144,18 @@ jobs:
           sbom-path: sbom-${{ matrix.job.name }}.spdx.json
           push-to-registry: true
 
+      - name: Attest SBOM with cosign (main)
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}@${{ steps.push-main.outputs.digest }}
+          SBOM: sbom-${{ matrix.job.name }}.spdx.json
+        run: |
+          set -euo pipefail
+          cosign attest --yes \
+            --predicate "$SBOM" \
+            --type https://spdx.dev/Document/v2.3 \
+            "$IMAGE"
+
       - name: Write digest to file
         shell: bash
         run: |
