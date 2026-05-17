@@ -53,6 +53,10 @@ jobs:
 
 The container will be signed with [cosign](https://github.com/sigstore/cosign) and [GitHub Attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds), you can verify the container before you using it in the workflow.
 
+The build also publishes an SPDX JSON SBOM for each architecture image and attaches the same SBOM as both a GitHub SBOM attestation and a cosign SBOM attestation to the pushed image digest. The SBOM is generated from the built container image, so it reflects the RPM packages, Ruby gems, and scripts that are actually present in the image.
+
+For workflows that verify the container before using it, resolve the `latest` tag to a digest first, verify that immutable digest, and use the same digest in later jobs. This avoids a time-of-check/time-of-use race where `latest` changes after verification but before the container job starts.
+
 This is an example workflow for verifying the container before using the container.
 
 ```yaml
@@ -60,6 +64,8 @@ jobs:
     verify:
       name: Verify container
       runs-on: ubuntu-24.04-arm
+      outputs:
+        digest: ${{ steps.get-digest.outputs.digest }}
       steps:
         # If you want to use cosign to verify the container, you should install cosign first.
 
@@ -68,12 +74,34 @@ jobs:
         - name: Install Cosign
           uses: sigstore/cosign-installer@v4.1.1
 
+        # Resolve the floating tag once, then verify and use this exact digest.
+        - name: Get image digest
+          id: get-digest
+          run: |
+            set -euo pipefail
+            digest="$(skopeo inspect --format '{{.Digest}}' docker://ghcr.io/xlionjuan/fedora-createrepo-image:latest)"
+            test -n "$digest"
+            echo "Resolved digest: ${digest}"
+            echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
         - name: Verify with cosign
           run: |
             cosign verify --rekor-url=https://rekor.sigstore.dev \
             --certificate-identity-regexp "https://github.com/xlionjuan/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            ghcr.io/xlionjuan/fedora-createrepo-image:latest
+            ghcr.io/xlionjuan/fedora-createrepo-image@${{ steps.get-digest.outputs.digest }}
+
+        # Optional: verify the SBOM attestation with cosign.
+        # SBOMs are attached to architecture-specific image digests, not the
+        # multi-architecture `latest` manifest. Use the tag matching the
+        # runner architecture, such as `latest-amd64` or `latest-arm64`.
+        - name: Verify SBOM attestation with cosign (optional)
+          run: |
+            cosign verify-attestation \
+            --type https://spdx.dev/Document/v2.3 \
+            --certificate-identity-regexp "https://github.com/xlionjuan/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ghcr.io/xlionjuan/fedora-createrepo-image:latest-arm64
 
         # Unfortunately, gh can't do anything without login, even just `gh attestation verify` command
         # so it needs to login, but NO any permissions are required.
@@ -81,12 +109,24 @@ jobs:
         - name: Verify with gh
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: gh attestation verify --owner xlionjuan oci://ghcr.io/xlionjuan/fedora-createrepo-image:latest
+          run: gh attestation verify --owner xlionjuan oci://ghcr.io/xlionjuan/fedora-createrepo-image@${{ steps.get-digest.outputs.digest }}
+
+        # Optional: verify the SBOM attestation with GitHub CLI.
+        # Like the cosign SBOM check above, this must target an
+        # architecture-specific image tag or digest.
+        - name: Verify SBOM attestation with gh (optional)
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            gh attestation verify \
+              --owner xlionjuan \
+              --predicate-type https://spdx.dev/Document/v2.3 \
+              oci://ghcr.io/xlionjuan/fedora-createrepo-image:latest-arm64
 
     build:
       runs-on: ubuntu-24.04-arm
       needs: verify # So this will only runs if "verify" is passed.
-      container: ghcr.io/xlionjuan/fedora-createrepo-image:latest
+      container: ghcr.io/xlionjuan/fedora-createrepo-image@${{ needs.verify.outputs.digest }}
       steps:
         - name: Checkout code
           uses: actions/checkout@v6.0.2
