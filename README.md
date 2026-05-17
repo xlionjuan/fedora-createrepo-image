@@ -53,6 +53,8 @@ jobs:
 
 The container will be signed with [cosign](https://github.com/sigstore/cosign) and [GitHub Attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds), you can verify the container before you using it in the workflow.
 
+The build also publishes an SPDX JSON SBOM for each architecture image and attaches it as a GitHub SBOM attestation to the pushed image digest. The SBOM is generated from the built container image, so it reflects the RPM packages, Ruby gems, and scripts that are actually present in the image. Since `latest` is a multi-architecture manifest tag, verify SBOM attestations against an architecture-specific tag such as `latest-amd64` or `latest-arm64`.
+
 This is an example workflow for verifying the container before using the container.
 
 ```yaml
@@ -82,6 +84,15 @@ jobs:
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: gh attestation verify --owner xlionjuan oci://ghcr.io/xlionjuan/fedora-createrepo-image:latest
+
+        - name: Verify SBOM attestation with gh
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            gh attestation verify \
+              --owner xlionjuan \
+              --predicate-type https://spdx.dev/Document/v2.3 \
+              oci://ghcr.io/xlionjuan/fedora-createrepo-image:latest-amd64
 
     build:
       runs-on: ubuntu-24.04-arm

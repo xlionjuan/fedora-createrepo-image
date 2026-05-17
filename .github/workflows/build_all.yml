@@ -125,6 +125,25 @@ jobs:
           extra-args: |
             --compression-format=zstd
 
+      - name: Generate SBOM (main)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ghcr.io/${{ github.repository }}@${{ steps.push-main.outputs.digest }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.job.name }}.spdx.json
+          artifact-name: sbom-${{ github.sha }}-${{ matrix.job.name }}.spdx.json
+          upload-artifact: true
+          upload-release-assets: false
+
+      - name: Attest SBOM (main)
+        uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
+        if: github.event_name != 'pull_request'
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push-main.outputs.digest }}
+          sbom-path: sbom-${{ matrix.job.name }}.spdx.json
+          push-to-registry: true
+
       - name: Write digest to file
         shell: bash
         run: |
