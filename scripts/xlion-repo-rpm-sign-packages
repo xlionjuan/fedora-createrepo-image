@@ -149,15 +149,28 @@ collect_rpms() {
 
 has_signature() {
   local rpm_file="$1"
+  local first_line=1
+  local key_lc="${GPG_KEY,,}"
+  local line
+  local line_lc
 
   echo "== rpmkeys output for $rpm_file ==" >&2
   rpmkeys -Kv "$rpm_file" >&2
   echo "== end ==" >&2
 
-  # Verify signature structurally: query RPM metadata for Signature field.
-  # rpm -qip produces structured output; grepping only the Signature line
-  # avoids matching filename or free-text output that may contain the key ID.
-  rpm -qip "$rpm_file" 2>/dev/null | grep -qi "Signature.*${GPG_KEY}\b"
+  while IFS= read -r line; do
+    if (( first_line )); then
+      first_line=0
+      continue
+    fi
+
+    line_lc="${line,,}"
+    if [[ "$line_lc" == *signature* && "$line_lc" == *"$key_lc"* && "$line_lc" == *": ok"* ]]; then
+      return 0
+    fi
+  done < <(rpmkeys -Kv "$rpm_file" 2>/dev/null)
+
+  return 1
 }
 
 sign_rpm() {
@@ -203,7 +216,7 @@ verify_or_retry() {
 
 main() {
   parse_args "$@"
-  check_dependencies find grep rpm rpmkeys rpmsign sleep sort
+  check_dependencies find rpmkeys rpmsign sleep sort
 
   if [[ ${#DIRS[@]} -eq 0 ]]; then
     error "At least one --dir is required."
