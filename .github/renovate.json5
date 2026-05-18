@@ -22,6 +22,18 @@
       packageNameTemplate: '{{{depName}}}',
       versioningTemplate: 'loose',
     },
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/(^|/)\\.github/workflows/.+\\.ya?ml$/',
+      ],
+      matchStrings: [
+        'uses:\\s+docker/setup-buildx-action@[^\\n]+(?:\\n\\s+[^\\n]*)*?\\n\\s+version:\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+)',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'docker/buildx',
+      versioningTemplate: 'loose',
+    },
   ],
   packageRules: [
     {
@@ -33,6 +45,22 @@
         'digest',
         'pinDigest',
         'major',
+        'minor',
+        'patch',
+      ],
+      automerge: true,
+      labels: [
+        'dependencies',
+      ],
+    },
+    {
+      matchManagers: [
+        'custom.regex',
+      ],
+      matchPackageNames: [
+        'docker/buildx',
+      ],
+      matchUpdateTypes: [
         'minor',
         'patch',
       ],
