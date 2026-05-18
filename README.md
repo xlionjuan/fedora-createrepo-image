@@ -72,7 +72,7 @@ jobs:
         # You only need to choose one method
 
         - name: Install Cosign
-          uses: sigstore/cosign-installer@v4.1.2
+          uses: sigstore/cosign-installer@v4.1.1
 
         # Resolve the floating tag once, then verify and use this exact digest.
         - name: Get image digest
