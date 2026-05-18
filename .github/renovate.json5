@@ -1,95 +1,65 @@
 {
-  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
-  extends: [
-    'config:best-practices',
-  ],
-  timezone: 'Asia/Taipei',
-  enabledManagers: [
-    'github-actions',
-    'dockerfile',
-    'custom.regex',
-  ],
-  customManagers: [
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices"],
+  "timezone": "Asia/Taipei",
+  "enabledManagers": ["github-actions", "dockerfile", "custom.regex"],
+  "customManagers": [
     {
-      customType: 'regex',
-      managerFilePatterns: [
-        '/README.md/',
+      "customType": "regex",
+      "managerFilePatterns": ["/README.md/"],
+      "matchStrings": [
+        "uses:\\s+(?<depName>[^@#\\s]+)@(?<currentValue>\\S+)"
       ],
-      matchStrings: [
-        'uses:\\s+(?<depName>[^@#\\s]+)@(?<currentValue>\\S+)',
-      ],
-      datasourceTemplate: 'github-tags',
-      packageNameTemplate: '{{{depName}}}',
-      versioningTemplate: 'loose',
+      "datasourceTemplate": "github-tags",
+      "packageNameTemplate": "{{{depName}}}",
+      "versioningTemplate": "loose"
     },
     {
-      customType: 'regex',
-      managerFilePatterns: [
-        '/(^|/)\\.github/workflows/.+\\.ya?ml$/',
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "uses:\\s+docker/setup-buildx-action@[^\\n]+(?:\\n\\s+[^\\n]*)*?\\n\\s+version:\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+)"
       ],
-      matchStrings: [
-        'uses:\\s+docker/setup-buildx-action@[^\\n]+(?:\\n\\s+[^\\n]*)*?\\n\\s+version:\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+)',
-      ],
-      datasourceTemplate: 'github-releases',
-      depNameTemplate: 'docker/buildx',
-      versioningTemplate: 'loose',
-    },
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "docker/buildx",
+      "versioningTemplate": "loose"
+    }
   ],
-  packageRules: [
+  "packageRules": [
     {
-      matchManagers: [
-        'github-actions',
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": [
+        "pin",
+        "digest",
+        "pinDigest",
+        "major",
+        "minor",
+        "patch"
       ],
-      matchUpdateTypes: [
-        'pin',
-        'digest',
-        'pinDigest',
-        'major',
-        'minor',
-        'patch',
-      ],
-      automerge: true,
-      labels: [
-        'dependencies',
-      ],
+      "automerge": true,
+      "labels": ["dependencies"]
     },
     {
-      matchManagers: [
-        'custom.regex',
-      ],
-      matchPackageNames: [
-        'docker/buildx',
-      ],
-      matchUpdateTypes: [
-        'minor',
-        'patch',
-      ],
-      automerge: true,
-      labels: [
-        'dependencies',
-      ],
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["sigstore/cosign-installer"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "labels": ["dependencies"]
     },
     {
-      matchManagers: [
-        'dockerfile',
-      ],
-      matchUpdateTypes: [
-        'pin',
-        'digest',
-        'pinDigest',
-        'minor',
-        'patch',
-      ],
-      automerge: true,
-      labels: [
-        'dependencies',
-      ],
-      schedule: [
-        '* * * * *',
-      ],
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["docker/buildx"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "labels": ["dependencies"]
     },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
+      "automerge": true,
+      "labels": ["dependencies"],
+      "schedule": ["* * * * *"]
+    }
   ],
-  schedule: [
-    '* 3-6 1 * *',
-  ],
+  "schedule": ["* 3-6 1 * *"]
 }
