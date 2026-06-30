@@ -52,7 +52,7 @@ jobs:
         run: mkdir -p ${{ env.HOST_DNF_CACHE_PATH }}
 
       - name: Restore DNF Cache
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
           key: dnf-cache-${{ matrix.job.name }}
@@ -111,7 +111,7 @@ jobs:
           fi
 
       - name: Save DNF Cache
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ${{ env.HOST_DNF_CACHE_PATH }}
           key: dnf-cache-${{ matrix.job.name }}-${{ github.run_id }}
