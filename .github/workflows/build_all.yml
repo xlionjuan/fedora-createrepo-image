@@ -175,7 +175,7 @@ jobs:
           retention-days: 1
 
       - name: Attest (main)
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         if: github.event_name != 'pull_request'
         with:
           subject-name: ghcr.io/${{ github.repository }}
@@ -282,14 +282,14 @@ jobs:
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Attest (Tag resign) (latest)
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.digest-latest.outputs.digest }}
           push-to-registry: true
 
       - name: Attest (Tag resign) (time)
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.digest-time.outputs.digest }}
