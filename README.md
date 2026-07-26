@@ -44,7 +44,7 @@ jobs:
       container: ghcr.io/xlionjuan/fedora-createrepo-image:latest
       steps:
         - name: Checkout code
-          uses: actions/checkout@v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       .....
       .....
 ```
@@ -129,7 +129,7 @@ jobs:
       container: ghcr.io/xlionjuan/fedora-createrepo-image@${{ needs.verify.outputs.digest }}
       steps:
         - name: Checkout code
-          uses: actions/checkout@v7.0.0
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
         - name: Do something
           run: rpm -qa

@@ -4,10 +4,21 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Update GitHub Action versions shown in README examples.",
+      "description": "Update sigstore/cosign-installer versions shown in README examples.",
       "managerFilePatterns": ["/^README\\.md$/"],
       "matchStrings": [
-        "uses:\\s+(?<depName>[^@#\\s]+)@(?<currentValue>\\S+)"
+        "uses:\\s+(?<depName>sigstore/cosign-installer)@(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "github-tags",
+      "packageNameTemplate": "{{{depName}}}",
+      "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "description": "Update commit-pinned actions/checkout versions shown in README examples.",
+      "managerFilePatterns": ["/^README\\.md$/"],
+      "matchStrings": [
+        "uses:\\s+(?<depName>actions/checkout)@(?<currentDigest>[a-f0-9]{40})\\s+#\\s+(?<currentValue>\\S+)"
       ],
       "datasourceTemplate": "github-tags",
       "packageNameTemplate": "{{{depName}}}",
@@ -28,6 +39,13 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "Automerge non-major README updates for actions/checkout after CI passes.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["actions/checkout"],
+      "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
+      "automerge": true
+    },
     {
       "description": "Automerge non-major README updates for sigstore/cosign-installer after CI passes.",
       "matchManagers": ["custom.regex"],
