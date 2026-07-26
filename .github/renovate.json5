@@ -7,8 +7,10 @@
       "description": "Update sigstore/cosign-installer versions shown in README examples.",
       "managerFilePatterns": ["/^README\\.md$/"],
       "matchStrings": [
-        "uses:\\s+(?<depName>sigstore/cosign-installer)@(?<currentValue>\\S+)"
+        "uses:\\s+(?<depName>sigstore/cosign-installer)@(?<currentValue>v[^\\s#]+)",
+        "uses:\\s+(?<depName>sigstore/cosign-installer)@(?<currentDigest>[a-f0-9]{40})\\s+#\\s+(?<currentValue>v\\S+)"
       ],
+      "autoReplaceStringTemplate": "uses: {{{depName}}}@{{#if newDigest}}{{{newDigest}}} # {{{newValue}}}{{else}}{{{newValue}}}{{/if}}",
       "datasourceTemplate": "github-tags",
       "packageNameTemplate": "{{{depName}}}",
       "versioningTemplate": "loose"
@@ -18,8 +20,10 @@
       "description": "Update commit-pinned actions/checkout versions shown in README examples.",
       "managerFilePatterns": ["/^README\\.md$/"],
       "matchStrings": [
-        "uses:\\s+(?<depName>actions/checkout)@(?<currentDigest>[a-f0-9]{40})\\s+#\\s+(?<currentValue>\\S+)"
+        "uses:\\s+(?<depName>actions/checkout)@(?<currentValue>v[^\\s#]+)",
+        "uses:\\s+(?<depName>actions/checkout)@(?<currentDigest>[a-f0-9]{40})\\s+#\\s+(?<currentValue>v\\S+)"
       ],
+      "autoReplaceStringTemplate": "uses: {{{depName}}}@{{#if newDigest}}{{{newDigest}}} # {{{newValue}}}{{else}}{{{newValue}}}{{/if}}",
       "datasourceTemplate": "github-tags",
       "packageNameTemplate": "{{{depName}}}",
       "versioningTemplate": "loose"
@@ -44,13 +48,15 @@
       "matchManagers": ["custom.regex"],
       "matchPackageNames": ["actions/checkout"],
       "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
+      "pinDigests": true,
       "automerge": true
     },
     {
       "description": "Automerge non-major README updates for sigstore/cosign-installer after CI passes.",
       "matchManagers": ["custom.regex"],
       "matchPackageNames": ["sigstore/cosign-installer"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
+      "pinDigests": true,
       "automerge": true
     },
     {
