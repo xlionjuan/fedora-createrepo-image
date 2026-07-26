@@ -1,12 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:best-practices"],
-  "timezone": "Asia/Taipei",
-  "enabledManagers": ["github-actions", "dockerfile", "custom.regex"],
+  "extends": ["local>xlionjuan/renovatebot-presets"],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/README.md/"],
+      "description": "Update GitHub Action versions shown in README examples.",
+      "managerFilePatterns": ["/^README\\.md$/"],
       "matchStrings": [
         "uses:\\s+(?<depName>[^@#\\s]+)@(?<currentValue>\\S+)"
       ],
@@ -16,7 +15,10 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/(^|/)\\.github/workflows/.+\\.ya?ml$/"],
+      "description": "Compatibility manager for docker/setup-buildx-action with.version. Renovate 43.196.0 does not support this field natively; remove this manager after the deployed bot gains native docker/buildx extraction.",
+      "managerFilePatterns": [
+        "/(^|/)\\.github/workflows/.+\\.ya?ml$/"
+      ],
       "matchStrings": [
         "uses:\\s+docker/setup-buildx-action@[^\\n]+(?:\\n\\s+[^\\n]*)*?\\n\\s+version:\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+)"
       ],
@@ -27,39 +29,33 @@
   ],
   "packageRules": [
     {
-      "matchManagers": ["github-actions"],
+      "description": "Automerge non-major README updates for sigstore/cosign-installer after CI passes.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["sigstore/cosign-installer"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge non-major docker/buildx version updates after CI passes.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["docker/buildx"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Fedora deletes superseded official images immediately. Process Dockerfile updates at any time without a release cooldown, and automerge non-major updates only after CI passes.",
+      "matchManagers": ["dockerfile"],
       "matchUpdateTypes": [
         "pin",
         "digest",
         "pinDigest",
-        "major",
         "minor",
         "patch"
       ],
-      "automerge": true,
-      "labels": ["dependencies"]
-    },
-    {
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["sigstore/cosign-installer"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "labels": ["dependencies"]
-    },
-    {
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["docker/buildx"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "labels": ["dependencies"]
-    },
-    {
-      "matchManagers": ["dockerfile"],
-      "matchUpdateTypes": ["pin", "digest", "pinDigest", "minor", "patch"],
-      "automerge": true,
-      "labels": ["dependencies"],
-      "schedule": ["* * * * *"]
+      "minimumReleaseAge": null,
+      "schedule": ["at any time"],
+      "automerge": true
     }
   ],
-  "schedule": ["* 3-6 1 * *"]
+  "schedule": ["* 3-6 * * 3"]
 }
