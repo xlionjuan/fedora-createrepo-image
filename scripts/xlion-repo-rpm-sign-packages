@@ -177,7 +177,7 @@ sign_rpm() {
   local rpm_file="$1"
 
   info "Signing: $rpm_file"
-  rpmsign --key-id "$GPG_KEY" --addsign "$rpm_file"
+  rpmsign --define '_openpgp_sign sq' --key-id "$GPG_KEY" --addsign "$rpm_file"
 }
 
 verify_or_retry() {
@@ -196,7 +196,7 @@ verify_or_retry() {
   while ((attempt <= RETRY)); do
     warn "Retry $attempt/$RETRY: $rpm_file"
 
-    if ! rpmsign --key-id "$GPG_KEY" --addsign "$rpm_file"; then
+    if ! rpmsign --define '_openpgp_sign sq' --key-id "$GPG_KEY" --addsign "$rpm_file"; then
       warn "rpmsign returned non-zero, re-checking signature anyway."
     fi
 
