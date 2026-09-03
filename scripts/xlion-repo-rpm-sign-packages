@@ -52,7 +52,9 @@ Examples:
 
 Notes:
   - RPM packages are signed sequentially, not concurrently.
-  - This tool expects the GPG key to already be imported.
+  - Signing uses sq and requests both RPM v4 and v6 signature formats.
+  - RPM v4 signatures require a signing algorithm supported by RPM v4.
+  - This tool expects the signing key to already be imported into sq.
   - This tool expects the public key to already be imported into rpmkeys.
   - Logs are printed to stderr.
 EOF
@@ -177,7 +179,7 @@ sign_rpm() {
   local rpm_file="$1"
 
   info "Signing: $rpm_file"
-  rpmsign --define '_openpgp_sign sq' --key-id "$GPG_KEY" --addsign "$rpm_file"
+  rpmsign --define '_openpgp_sign sq' --key-id "$GPG_KEY" --rpmv4 --rpmv6 --addsign "$rpm_file"
 }
 
 verify_or_retry() {
@@ -196,7 +198,7 @@ verify_or_retry() {
   while ((attempt <= RETRY)); do
     warn "Retry $attempt/$RETRY: $rpm_file"
 
-    if ! rpmsign --define '_openpgp_sign sq' --key-id "$GPG_KEY" --addsign "$rpm_file"; then
+    if ! rpmsign --define '_openpgp_sign sq' --key-id "$GPG_KEY" --rpmv4 --rpmv6 --addsign "$rpm_file"; then
       warn "rpmsign returned non-zero, re-checking signature anyway."
     fi
 

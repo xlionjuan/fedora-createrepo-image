@@ -429,6 +429,10 @@ Functional testing should use a throwaway GPG key and a throwaway RPM repo direc
 
 `xlion-repo-rpm-sign-packages` signs `.rpm` files in one or more directories, verifies the resulting signatures with `rpmkeys -Kv`, and retries signing when verification fails.
 
+Signing uses the Sequoia `sq` backend and RPM 6's `--rpmv4 --rpmv6` options to request both RPM signature formats, including during retries. The signing key must already be imported into sq, and `SEQUOIA_HOME` must point to that key store when it is not the default.
+
+RPM v4 compatibility signatures require a signing algorithm supported by RPM v4. These RPM signature formats are distinct from the OpenPGP packet version printed by `rpmkeys`.
+
 RustDesk RPM-style usage:
 
 ```bash
@@ -459,7 +463,7 @@ xlion-repo-rpm-sign-packages \
 What this script owns:
 
 - collecting direct child `.rpm` files from one or more directories
-- signing each RPM with `rpmsign --key-id`
+- signing each RPM with `rpmsign --key-id --rpmv4 --rpmv6` using sq
 - verifying signatures with `rpmkeys -Kv`
 - checking that `rpmkeys -Kv` output contains the requested `--gpg-key`
 - retrying signing when verification fails
@@ -479,7 +483,7 @@ bash -n scripts/xlion-repo-rpm-sign-packages
 scripts/xlion-repo-rpm-sign-packages --help
 ```
 
-Functional testing should use a throwaway RPM and a throwaway GPG key. Import the public key into rpmkeys before running this helper, then confirm `rpmkeys -Kv` reports the expected key.
+Functional testing should use a throwaway RPM and a throwaway RSA signing key. Import the private key into sq and the public key into rpmkeys before running this helper, then confirm `rpmkeys -Kv` reports the expected key. Check the raw RPM signature header for both the v4 RSA signature and the v6 OpenPGP signature array; the `OPENPGP` query extension also exposes legacy signatures, so its output alone does not prove that a v6 signature was stored.
 
 ## Adding a New Script
 
