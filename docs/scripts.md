@@ -437,11 +437,11 @@ Functional testing should use a throwaway OpenPGP key imported into a throwaway 
 
 ### `xlion-repo-rpm-sign-packages`
 
-`xlion-repo-rpm-sign-packages` signs `.rpm` files in one or more directories with Sequoia's `sq` backend, verifies the resulting signatures with `rpmkeys -Kv`, and retries signing when verification fails.
+`xlion-repo-rpm-sign-packages` signs `.rpm` files in one or more directories with Sequoia's `sq` backend, verifies the resulting signatures with `rpmkeys -Kv`, and retries signing when verification fails. A package is accepted only when one `rpmkeys -Kv` signature line contains the requested `--gpg-key`, a supported RPM v4 signing algorithm (`RSA`, `DSA`, `ECDSA`, or `EdDSA`), and `OK`; this is the signing-algorithm compatibility gate.
 
 Signing uses the Sequoia `sq` backend and RPM 6's `--rpmv4 --rpmv6` options to request both RPM signature formats, including during retries. The signing key must already be imported into sq, and `SEQUOIA_HOME` must point to that key store when it is not the default. The `--gpg-key` value should be an OpenPGP key ID or fingerprint; a full fingerprint is recommended.
 
-RPM v4 compatibility signatures require a signing algorithm supported by RPM v4. These RPM signature formats are distinct from the OpenPGP packet version printed by `rpmkeys`.
+RPM v4 compatibility requires a signing algorithm supported by RPM v4. The helper uses the matching `rpmkeys -Kv` signature algorithm token as this compatibility gate and rejects other algorithms, such as ML-DSA. `rpmsign --rpmv4 --rpmv6` remains responsible for RPM v4 and v6 signature storage.
 
 RustDesk RPM-style usage:
 
@@ -474,6 +474,7 @@ What this script owns:
 
 - collecting direct child `.rpm` files from one or more directories
 - signing each RPM with `rpmsign --key-id --rpmv4 --rpmv6` using sq
+- requiring a matching `rpmkeys -Kv` signature line for the requested key with an RPM v4-supported algorithm (`RSA`, `DSA`, `ECDSA`, or `EdDSA`)
 - verifying signatures with `rpmkeys -Kv`
 - checking that `rpmkeys -Kv` output contains the requested `--gpg-key`
 - retrying signing when verification fails
@@ -494,7 +495,7 @@ bash -n scripts/xlion-repo-rpm-sign-packages
 scripts/xlion-repo-rpm-sign-packages --help
 ```
 
-Functional testing should use a throwaway RPM and a throwaway RSA signing key. Import the private key into sq and the public key into rpmkeys before running this helper, then confirm `rpmkeys -Kv` reports the expected key. Check the raw RPM signature header for both the v4 RSA signature and the v6 OpenPGP signature array; the `OPENPGP` query extension also exposes legacy signatures, so its output alone does not prove that a v6 signature was stored.
+Functional testing should use a throwaway RPM and a throwaway RSA signing key. Import the private key into sq and the public key into rpmkeys before running this helper, then confirm `rpmkeys -Kv` reports the expected key with a supported algorithm and `OK` status and the helper accepts it. Test a key whose matching output has an unsupported algorithm such as ML-DSA and confirm that the helper rejects it. Also reject a supported algorithm with the wrong fingerprint or a `NOT OK` status. RPM v4 supports RSA, DSA, ECDSA, and EdDSA signing keys; `rpmsign --rpmv4 --rpmv6` remains responsible for signature storage.
 
 ## Adding a New Script
 

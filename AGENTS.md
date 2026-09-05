@@ -153,7 +153,7 @@ xlion-repo-rpm-sign-repomd \
 
 Purpose: sign `.rpm` packages with the Sequoia `sq` backend and verify signatures with `rpmkeys`.
 
-Design intent: this script owns RPM package signing with `rpmsign --rpmv4 --rpmv6`, fingerprint verification, and retry logic. It requires `sq` and must not import OpenPGP signing keys, create RPM repository metadata, or sign `repomd.xml`.
+Design intent: this script owns RPM package signing with `rpmsign --rpmv4 --rpmv6`, requiring one `rpmkeys -Kv` signature line containing the selected key, an RPM v4-supported signing algorithm (`RSA`, `DSA`, `ECDSA`, or `EdDSA`), and `OK` as the signing-algorithm compatibility gate, fingerprint verification, and retry logic. `rpmsign` remains responsible for RPM v4 and v6 signature storage. It requires `rpmkeys`, `rpmsign`, and `sq`, and must not import OpenPGP signing keys, create RPM repository metadata, or sign `repomd.xml`.
 
 Common usage:
 
@@ -165,6 +165,8 @@ xlion-repo-rpm-sign-packages \
 ```
 
 Keep signing sequential unless there is a proven need to parallelize. RPM signing behavior is more sensitive than metadata generation.
+
+Functional tests should cover a package whose matching `rpmkeys -Kv` signature line has an RPM v4-supported algorithm and `OK` status, reject a matching key with an unsupported algorithm such as ML-DSA, and exercise RSA, DSA, ECDSA, and EdDSA keys where supported by RPM v4. Also reject a wrong fingerprint or `NOT OK` status. `rpmkeys` output provides both the cryptographic check and the key identity check, while `rpmsign --rpmv4 --rpmv6` handles signature storage.
 
 ## Testing Requirements
 
