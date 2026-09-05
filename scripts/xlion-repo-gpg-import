@@ -48,12 +48,12 @@ Usage:
 Options:
   --key-env ENV_NAME       Read the private key from the named environment variable.
   --stdin                  Read the private key from stdin.
-  --github-env             Write the fingerprint to \$GITHUB_ENV.
+  --github-env             Write the --name fingerprint and SEQUOIA_HOME to \$GITHUB_ENV.
   --github-output          Write the fingerprint to \$GITHUB_OUTPUT.
   --name NAME              Output variable name (default: GPG_FINGERPRINT).
   --create-gnupghome       Create a temporary GNUPGHOME when GNUPGHOME is not already set.
-                           When used with --github-env, GNUPGHOME, GPG_TTY=, and
-                           SEQUOIA_HOME are also written to \$GITHUB_ENV.
+                           With --github-env, also write GNUPGHOME and GPG_TTY= to
+                           \$GITHUB_ENV.
   --print-gnupghome        Print GNUPGHOME to stderr after import. Useful for debugging.
   --rpmkeys-import         Import the public key into rpmkeys after GPG import.
   -h, --help               Show this help message.

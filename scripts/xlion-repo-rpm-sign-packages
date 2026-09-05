@@ -42,7 +42,7 @@ Usage:
 
 Options:
   --dir DIR             Directory containing .rpm packages. Can be repeated.
-  --gpg-key KEY         GPG key identifier, key ID, or fingerprint used for signing and verification.
+  --gpg-key KEY         OpenPGP key ID or fingerprint used for signing and verification; full fingerprint recommended.
   --retry COUNT         Retry count when signature verification fails. Default: 3.
   --retry-sleep SEC     Seconds to sleep between retries. Default: 2.
   -h, --help            Show this help message.
@@ -218,7 +218,7 @@ verify_or_retry() {
 
 main() {
   parse_args "$@"
-  check_dependencies find rpmkeys rpmsign sleep sort
+  check_dependencies find rpmkeys rpmsign sleep sort sq
 
   if [[ ${#DIRS[@]} -eq 0 ]]; then
     error "At least one --dir is required."

@@ -17,7 +17,7 @@ Treat scripts as public CI tools. Other repositories may call them directly from
 - Validate required inputs before doing network, signing, or destructive file operations.
 - Prefer explicit arguments over hidden repository-specific behavior.
 - Do not make generic scripts understand every product-specific rule. Keep product-specific asset filtering in the calling workflow when plain shell is clearer.
-- Do not delete state that later workflow steps need. For example, `xlion-repo-gpg-import` must not delete `GNUPGHOME` after importing a key.
+- Do not delete state that later workflow steps need. For example, `xlion-repo-gpg-import` must not delete `GNUPGHOME` or `SEQUOIA_HOME` after importing a key.
 
 ## Current Scripts
 
@@ -41,9 +41,9 @@ Expected behavior in verify mode:
 
 ### `xlion-repo-gpg-import`
 
-Purpose: import a GPG private key into `GNUPGHOME`, report the imported fingerprint, and optionally export that fingerprint to GitHub Actions environment or output files.
+Purpose: import an OpenPGP private key into separate GnuPG and Sequoia key stores (`GNUPGHOME` and `SEQUOIA_HOME`), report the imported fingerprint, and optionally export that fingerprint to GitHub Actions environment or output files.
 
-Design intent: this script only prepares GPG key state. It must not publish repositories, sign packages, run `aptly`, run `rpmsign`, or clean up `GNUPGHOME`.
+Design intent: this script only prepares GnuPG and Sequoia key state. It must not publish repositories, sign packages, run `aptly`, run `rpmsign`, or clean up `GNUPGHOME` or `SEQUOIA_HOME`.
 
 Common GitHub Actions usage:
 
@@ -70,7 +70,7 @@ Expected output behavior:
 
 - stdout prints only the fingerprint.
 - logs and errors go to stderr.
-- `--github-env` writes the fingerprint to `$GITHUB_ENV`.
+- `--github-env` writes the selected output name with the fingerprint and `SEQUOIA_HOME=...` to `$GITHUB_ENV`.
 - `--create-gnupghome --github-env` also writes `GNUPGHOME=...` and `GPG_TTY=` to `$GITHUB_ENV`.
 
 ### `xlion-repo-repackage-deb`
@@ -136,9 +136,9 @@ xlion-repo-rpm-createrepo \
 
 ### `xlion-repo-rpm-sign-repomd`
 
-Purpose: sign `repodata/repomd.xml` for one or more RPM repository directories.
+Purpose: sign `repodata/repomd.xml` with Sequoia's `sq` backend for one or more RPM repository directories.
 
-Design intent: this script owns the concurrent multi-directory `gpg --detach-sign --armor` loop only. It takes a clear `--gpg-key` argument and internally passes that value to `gpg --local-user`.
+Design intent: this script owns the concurrent multi-directory `sq --batch --overwrite sign` loop only. It takes a `--gpg-key` argument containing an OpenPGP key ID or fingerprint (full fingerprint recommended) and passes that value to `sq --signer`.
 
 Common usage:
 
@@ -151,9 +151,9 @@ xlion-repo-rpm-sign-repomd \
 
 ### `xlion-repo-rpm-sign-packages`
 
-Purpose: sign `.rpm` packages and verify signatures with `rpmkeys`.
+Purpose: sign `.rpm` packages with the Sequoia `sq` backend and verify signatures with `rpmkeys`.
 
-Design intent: this script owns RPM package signing, fingerprint verification, and retry logic. It must not import GPG keys, create RPM repository metadata, or sign `repomd.xml`.
+Design intent: this script owns RPM package signing with `rpmsign --rpmv4 --rpmv6`, fingerprint verification, and retry logic. It requires `sq` and must not import OpenPGP signing keys, create RPM repository metadata, or sign `repomd.xml`.
 
 Common usage:
 
@@ -164,7 +164,7 @@ xlion-repo-rpm-sign-packages \
   --gpg-key "$GPG_FINGERPRINT"
 ```
 
-Keep signing sequential unless there is a proven need to parallelize. GPG/rpmsign behavior is more sensitive than metadata generation.
+Keep signing sequential unless there is a proven need to parallelize. RPM signing behavior is more sensitive than metadata generation.
 
 ## Testing Requirements
 

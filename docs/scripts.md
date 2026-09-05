@@ -15,7 +15,7 @@ Each script should have one main job.
 Good examples:
 
 - `xlion-repo-utils-gh` handles GitHub release metadata and checksum verification.
-- `xlion-repo-gpg-import` imports a GPG key and reports the fingerprint.
+- `xlion-repo-gpg-import` imports a private key into GnuPG and Sequoia and reports the fingerprint.
 - `xlion-repo-repackage-deb` repackages DEB files with consistent fpm options.
 - `xlion-repo-repackage-rpm` repackages RPM files with consistent fpm options.
 - `xlion-repo-rpm-createrepo` creates RPM repository metadata for one or more directories.
@@ -70,7 +70,7 @@ Accept secret material through environment variables or stdin. Prefer letting th
 
 Temporary state should have an obvious owner.
 
-For GPG, `GNUPGHOME` must remain available to later steps that run `gpg`, `aptly`, or `rpmsign`. `xlion-repo-gpg-import` may create `GNUPGHOME`, but it intentionally does not delete it. The workflow should clean it up in an `if: always()` step when signing is finished.
+For GPG, `GNUPGHOME` must remain available to later steps that run `gpg` or `aptly`. RPM signing and RPM repository metadata signing use Sequoia, so `SEQUOIA_HOME` must remain available to later steps that run `sq` or the `rpmsign` sq backend. `xlion-repo-gpg-import` may create both homes, but it intentionally does not delete either one. With `--github-env`, it writes the paths to `$GITHUB_ENV`; GitHub Actions makes them available to subsequent steps. The workflow should remove both homes in an `if: always()` cleanup step after signing and publishing are finished.
 
 ## Script Reference
 
@@ -135,7 +135,7 @@ If network access is acceptable, also test a small fetch-only scenario against a
 
 ### `xlion-repo-gpg-import`
 
-`xlion-repo-gpg-import` imports a private key and prints the imported fingerprint.
+`xlion-repo-gpg-import` imports a private key into both GnuPG and Sequoia and prints the imported fingerprint. The two key stores are separate: GnuPG consumers such as aptly use `GNUPGHOME`, while RPM signing helpers use `SEQUOIA_HOME` for `sq`.
 
 Recommended GitHub Actions usage:
 
@@ -151,9 +151,12 @@ This writes these variables for later workflow steps:
 
 ```bash
 GNUPGHOME=/tmp/...
+SEQUOIA_HOME=/tmp/...
 GPG_TTY=
 GPG_FINGERPRINT=...
 ```
+
+`--github-env` appends these values to `$GITHUB_ENV`; GitHub Actions applies that file when it starts the next step. The importer cannot change the environment of the step that invoked it. `GNUPGHOME` is created when it is unset and `--create-gnupghome` is given. `SEQUOIA_HOME` is created when it is unset. A caller-provided home is reused.
 
 Use stdin for local testing or when the caller does not want to store the key in an environment variable:
 
@@ -174,8 +177,8 @@ xlion-repo-gpg-import \
 What this script owns:
 
 - reading private key material from stdin or a caller-selected environment variable
-- creating `GNUPGHOME` when requested
-- importing the private key with `gpg`
+- creating `GNUPGHOME` when requested and creating `SEQUOIA_HOME` when needed
+- importing the private key with both `gpg` and `sq`
 - parsing and reporting the fingerprint
 - optionally importing the public key into rpm's key database
 
@@ -184,7 +187,7 @@ What this script does not own:
 - publishing APT repositories
 - signing RPM packages
 - signing `repomd.xml`
-- deleting `GNUPGHOME`
+- deleting `GNUPGHOME` or `SEQUOIA_HOME`; the calling workflow owns cleanup
 - choosing the secret name used by a workflow
 
 Minimum tests:
@@ -219,13 +222,17 @@ fingerprint="$({
 
 test -n "$fingerprint"
 grep -q '^GNUPGHOME=' "$tmp_env"
+grep -q '^SEQUOIA_HOME=' "$tmp_env"
 grep -qx 'GPG_TTY=' "$tmp_env"
 grep -q '^GPG_FINGERPRINT=' "$tmp_env"
 
 imported_home="$(grep '^GNUPGHOME=' "$tmp_env" | cut -d= -f2-)"
+sequoia_home="$(grep '^SEQUOIA_HOME=' "$tmp_env" | cut -d= -f2-)"
 GNUPGHOME="$imported_home" gpg --batch --list-secret-keys "$fingerprint" >/dev/null
+test -d "$sequoia_home"
+SEQUOIA_HOME="$sequoia_home" sq key list --cert "$fingerprint" >/dev/null
 
-rm -rf "$tmp_src" "$imported_home" "$tmp_env"
+rm -rf "$tmp_src" "$imported_home" "$sequoia_home" "$tmp_env"
 ```
 
 ### `xlion-repo-repackage-deb`
@@ -380,7 +387,9 @@ Functional testing should create one or more throwaway directories containing sm
 
 ### `xlion-repo-rpm-sign-repomd`
 
-`xlion-repo-rpm-sign-repomd` signs `repodata/repomd.xml` for one or more RPM repository directories. Multiple `--dir` values are processed concurrently, and each background job is checked with `wait`.
+`xlion-repo-rpm-sign-repomd` signs `repodata/repomd.xml` with Sequoia's `sq` backend for one or more RPM repository directories. Multiple `--dir` values are processed concurrently, and each background job is checked with `wait`.
+
+The helper requires `sq` and checks that it is available before signing.
 
 RustDesk RPM-style usage:
 
@@ -399,19 +408,20 @@ Single-directory usage:
 xlion-repo-rpm-sign-repomd --dir ~/.aptly/public/rpm --gpg-key "$GPG_FINGERPRINT"
 ```
 
-The `--gpg-key` value can be a fingerprint, key ID, or other GPG key identifier. The helper passes it to `gpg` as `--local-user` internally, but the public helper interface uses the clearer `--gpg-key` name.
+The `--gpg-key` value can be an OpenPGP key ID or fingerprint; a full fingerprint is recommended. The helper passes it to `sq` as `--signer`. The `--gpg-key` flag name is retained for compatibility with existing workflows.
 
 What this script owns:
 
 - validating that each repo directory exists
 - validating that each `repodata/repomd.xml` exists
-- signing each `repomd.xml` with `gpg --detach-sign --armor`
+- signing each `repomd.xml` with `sq --batch --overwrite sign`
 - running multiple directories concurrently
 - failing if any signing process fails
 
 What this script does not own:
 
 - importing GPG keys
+- importing the signing key into Sequoia
 - choosing the signing key secret name
 - signing RPM packages
 - creating RPM repository metadata
@@ -423,13 +433,13 @@ bash -n scripts/xlion-repo-rpm-sign-repomd
 scripts/xlion-repo-rpm-sign-repomd --help
 ```
 
-Functional testing should use a throwaway GPG key and a throwaway RPM repo directory with `repodata/repomd.xml`. Confirm that `repomd.xml.asc` is created.
+Functional testing should use a throwaway OpenPGP key imported into a throwaway Sequoia key store and a throwaway RPM repo directory with `repodata/repomd.xml`. Set `SEQUOIA_HOME` to that store when needed, then confirm that `repomd.xml.asc` is created.
 
 ### `xlion-repo-rpm-sign-packages`
 
-`xlion-repo-rpm-sign-packages` signs `.rpm` files in one or more directories, verifies the resulting signatures with `rpmkeys -Kv`, and retries signing when verification fails.
+`xlion-repo-rpm-sign-packages` signs `.rpm` files in one or more directories with Sequoia's `sq` backend, verifies the resulting signatures with `rpmkeys -Kv`, and retries signing when verification fails.
 
-Signing uses the Sequoia `sq` backend and RPM 6's `--rpmv4 --rpmv6` options to request both RPM signature formats, including during retries. The signing key must already be imported into sq, and `SEQUOIA_HOME` must point to that key store when it is not the default.
+Signing uses the Sequoia `sq` backend and RPM 6's `--rpmv4 --rpmv6` options to request both RPM signature formats, including during retries. The signing key must already be imported into sq, and `SEQUOIA_HOME` must point to that key store when it is not the default. The `--gpg-key` value should be an OpenPGP key ID or fingerprint; a full fingerprint is recommended.
 
 RPM v4 compatibility signatures require a signing algorithm supported by RPM v4. These RPM signature formats are distinct from the OpenPGP packet version printed by `rpmkeys`.
 
@@ -467,10 +477,11 @@ What this script owns:
 - verifying signatures with `rpmkeys -Kv`
 - checking that `rpmkeys -Kv` output contains the requested `--gpg-key`
 - retrying signing when verification fails
+- checking that `find`, `rpmkeys`, `rpmsign`, `sleep`, `sort`, and `sq` are available
 
 What this script does not own:
 
-- importing GPG private keys
+- importing the OpenPGP signing key into Sequoia
 - importing public keys into rpmkeys
 - creating RPM repository metadata
 - signing `repomd.xml`
