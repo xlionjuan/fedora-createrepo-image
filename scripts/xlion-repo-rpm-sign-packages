@@ -53,7 +53,8 @@ Examples:
 Notes:
   - RPM packages are signed sequentially, not concurrently.
   - Signing uses sq and requests both RPM v4 and v6 signature formats.
-  - RPM v4 signatures require a signing algorithm supported by RPM v4.
+  - Verification requires one rpmkeys signature line containing the matching key, a supported RPM v4 signing algorithm (RSA, DSA, ECDSA, or EdDSA), and : OK.
+  - RPM v4 and v6 signature storage remains delegated to rpmsign.
   - This tool expects the signing key to already be imported into sq.
   - This tool expects the public key to already be imported into rpmkeys.
   - Logs are printed to stderr.
@@ -167,7 +168,10 @@ has_signature() {
     fi
 
     line_lc="${line,,}"
-    if [[ "$line_lc" == *signature* && "$line_lc" == *"$key_lc"* && "$line_lc" == *": ok"* ]]; then
+    if [[ "$line_lc" == *signature* &&
+      "$line_lc" == *"$key_lc"* &&
+      "$line_lc" == *": ok"* &&
+      "$line_lc" =~ (^|[[:space:]])(rsa|dsa|ecdsa|eddsa)(/|[[:space:]]) ]]; then
       return 0
     fi
   done < <(rpmkeys -Kv "$rpm_file" 2>/dev/null)
