@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# xlion-repo-gpg-import - Import a GPG private key and report its fingerprint.
+# xlion-repo-gpg-import - Import an OpenPGP private key into GnuPG and Sequoia and report its fingerprint.
 #
 
 set -euo pipefail
@@ -38,8 +38,8 @@ warn() {
 }
 
 show_help() {
-  cat << EOF
-xlion-repo-gpg-import - Import a GPG private key and report its fingerprint.
+  cat << EOF_HELP
+xlion-repo-gpg-import - Import an OpenPGP private key into GnuPG and Sequoia and report its fingerprint.
 
 Usage:
   $(basename "$0") --key-env ENV_NAME [options]
@@ -48,12 +48,12 @@ Usage:
 Options:
   --key-env ENV_NAME       Read the private key from the named environment variable.
   --stdin                  Read the private key from stdin.
-  --github-env             Write the fingerprint to \$GITHUB_ENV.
+  --github-env             Write the --name fingerprint and SEQUOIA_HOME to \$GITHUB_ENV.
   --github-output          Write the fingerprint to \$GITHUB_OUTPUT.
   --name NAME              Output variable name (default: GPG_FINGERPRINT).
   --create-gnupghome       Create a temporary GNUPGHOME when GNUPGHOME is not already set.
-                           When used with --github-env, GNUPGHOME and GPG_TTY= are also
-                           written to \$GITHUB_ENV.
+                           With --github-env, also write GNUPGHOME and GPG_TTY= to
+                           \$GITHUB_ENV.
   --print-gnupghome        Print GNUPGHOME to stderr after import. Useful for debugging.
   --rpmkeys-import         Import the public key into rpmkeys after GPG import.
   -h, --help               Show this help message.
@@ -70,10 +70,12 @@ Examples:
   fingerprint="\$($(basename "$0") --key-env GPG_PRIVATE_KEY)"
 
 Notes:
+  - The private key is imported into both GnuPG and the Sequoia key store.
+  - If SEQUOIA_HOME is not set, a temporary one is created automatically.
   - This tool does not publish repositories or sign packages.
-  - It does not delete GNUPGHOME, because later workflow steps usually need the key.
+  - It does not delete GNUPGHOME or SEQUOIA_HOME, because later workflow steps usually need the key.
   - Use --create-gnupghome --github-env to replace a separate GPG preparation step.
-EOF
+EOF_HELP
 }
 
 check_dependencies() {
@@ -153,7 +155,7 @@ validate_args() {
   fi
 }
 
-prepare_gnupghome() {
+prepare_key_homes() {
   umask 077
 
   if [[ -z "${GNUPGHOME:-}" ]]; then
@@ -169,10 +171,23 @@ prepare_gnupghome() {
   mkdir -p "$GNUPGHOME" || error "Failed to create GNUPGHOME: $GNUPGHOME"
   chmod 700 "$GNUPGHOME" || error "Failed to chmod GNUPGHOME: $GNUPGHOME"
 
-  if [[ "$CREATE_GNUPGHOME" == true && "$WRITE_GITHUB_ENV" == true ]]; then
+  if [[ -z "${SEQUOIA_HOME:-}" ]]; then
+    SEQUOIA_HOME="$(mktemp -d)" || error "Failed to create temporary SEQUOIA_HOME."
+    export SEQUOIA_HOME
+    info "Created temporary SEQUOIA_HOME: $SEQUOIA_HOME"
+  fi
+
+  mkdir -p "$SEQUOIA_HOME" || error "Failed to create SEQUOIA_HOME: $SEQUOIA_HOME"
+  chmod 700 "$SEQUOIA_HOME" || error "Failed to chmod SEQUOIA_HOME: $SEQUOIA_HOME"
+
+  if [[ "$WRITE_GITHUB_ENV" == true ]]; then
     : "${GITHUB_ENV:?GITHUB_ENV is not set}"
-    echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
-    echo "GPG_TTY=" >> "$GITHUB_ENV"
+    echo "SEQUOIA_HOME=$SEQUOIA_HOME" >> "$GITHUB_ENV"
+
+    if [[ "$CREATE_GNUPGHOME" == true ]]; then
+      echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+      echo "GPG_TTY=" >> "$GITHUB_ENV"
+    fi
   fi
 
   if [[ "$PRINT_GNUPGHOME" == true ]]; then
@@ -214,12 +229,13 @@ parse_import_fingerprint() {
   printf '%s' "$fingerprint"
 }
 
-import_key() {
+import_gpg_key() {
+  local key_file="$1"
   local status_file
   status_file="$(mktemp)" || error "Failed to create temporary status file."
   trap 'rm -f "$status_file"' RETURN
 
-  if ! read_key_data | gpg --batch --yes --status-fd=1 --import > "$status_file" 2> /dev/null; then
+  if ! gpg --batch --yes --status-fd=1 --import "$key_file" > "$status_file" 2> /dev/null; then
     error "Failed to import GPG private key."
   fi
 
@@ -241,6 +257,11 @@ import_key() {
   printf '%s' "$fingerprint"
 }
 
+import_sequoia_key() {
+  local key_file="$1"
+  sq key import "$key_file" >&2
+}
+
 write_outputs() {
   local fingerprint="$1"
 
@@ -259,15 +280,22 @@ main() {
   parse_args "$@"
   validate_args
 
-  check_dependencies gpg awk mktemp chmod mkdir
+  check_dependencies gpg sq awk mktemp chmod mkdir
   if [[ "$RPMKEYS_IMPORT" == true ]]; then
     check_dependencies rpmkeys
   fi
 
-  prepare_gnupghome
+  prepare_key_homes
+
+  local key_file
+  key_file="$(mktemp)" || error "Failed to create temporary private key file."
+  # shellcheck disable=SC2064
+  trap "rm -f '$key_file'" EXIT
+  read_key_data > "$key_file"
 
   local fingerprint
-  fingerprint="$(import_key)"
+  fingerprint="$(import_gpg_key "$key_file")"
+  import_sequoia_key "$key_file"
 
   if [[ "$RPMKEYS_IMPORT" == true ]]; then
     gpg --batch --armor --export "$fingerprint" | rpmkeys --import -
@@ -275,7 +303,7 @@ main() {
   fi
 
   write_outputs "$fingerprint"
-  success "Imported GPG private key: $fingerprint"
+  success "Imported OpenPGP private key into GnuPG and Sequoia: $fingerprint"
   printf '%s\n' "$fingerprint"
 }
 
