@@ -35,7 +35,7 @@ Usage:
 
 Options:
   --dir DIR       RPM repository directory. Can be repeated.
-  --gpg-key KEY   GPG key identifier, key ID, or fingerprint used for signing.
+  --gpg-key KEY   OpenPGP key ID or fingerprint used for signing; full fingerprint recommended.
   -h, --help      Show this help message.
 
 Examples:
@@ -43,7 +43,8 @@ Examples:
 
 Notes:
   - Multiple --dir values are processed concurrently.
-  - The --gpg-key value is passed to gpg as --local-user.
+  - The --gpg-key value is passed to sq as --signer.
+  - The signing key must already be available to sq.
   - Logs are printed to stderr.
 EOF
 }
@@ -108,7 +109,7 @@ resolve_repomd_xml() {
 
 main() {
   parse_args "$@"
-  check_dependencies gpg
+  check_dependencies sq
 
   if [[ ${#DIRS[@]} -eq 0 ]]; then
     error "At least one --dir is required."
@@ -128,7 +129,10 @@ main() {
   for repomd_xml in "${repomd_files[@]}"; do
     (
       info "Signing metadata: $repomd_xml"
-      gpg --batch --yes --detach-sign --armor --local-user "$GPG_KEY" "$repomd_xml"
+      sq --batch --overwrite sign \
+         --signer "$GPG_KEY" \
+         --signature-file "$repomd_xml.asc" \
+         "$repomd_xml"
     ) &
     pids+=("$!")
   done

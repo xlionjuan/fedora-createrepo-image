@@ -8,7 +8,7 @@ COPY scripts/* /usr/bin
 # The set opt will write to /etc/dnf/repos.override.d
 # https://dnf5.readthedocs.io/en/latest/dnf5_plugins/config-manager.8.html
 RUN dnf5 config-manager setopt fedora-cisco-openh264.enabled=0 &&\
-    dnf -y install createrepo_c devscripts reprepro jq wget2-wget tree rpm-sign gnupg git rpm-build gh \
+    dnf -y install createrepo_c devscripts reprepro jq wget2-wget tree rpm-sign gnupg sequoia-sq git rpm-build gh \
    # binutils policycoreutils policycoreutils-python-utils selinux-policy-devel \
     --setopt=install_weak_deps=False \
     --setopt=keepcache=True &&\
@@ -17,7 +17,7 @@ RUN dnf5 config-manager setopt fedora-cisco-openh264.enabled=0 &&\
     --exclude=rubygem-rdoc &&\
     rm -rf /var/log/dnf*.log /root/.cache /usr/share/locale
 
-    # From the line of the binutils is the requirements of the SELinux config rpm builder 
+    # From the line of the binutils is the requirements of the SELinux config rpm builder
 
 COPY aptly.sh /tmp/aptly.sh
 RUN /tmp/aptly.sh
