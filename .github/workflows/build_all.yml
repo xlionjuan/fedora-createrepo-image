@@ -183,7 +183,7 @@ jobs:
           push-to-registry: true
 
   link-container-tags:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     name: Link Container tags
     needs: build-and-push
     if: github.event_name != 'pull_request'
@@ -320,7 +320,7 @@ jobs:
   # For PR Test Only
   # https://stackoverflow.com/questions/59077079/how-to-get-pull-request-number-within-github-actions-workflow
   link-container-tags-test:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     name: Link Container tags (PR Test)
     needs: build-and-push
     if: github.event_name == 'pull_request'
