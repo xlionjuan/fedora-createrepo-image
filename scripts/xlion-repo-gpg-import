@@ -257,11 +257,6 @@ import_gpg_key() {
   printf '%s' "$fingerprint"
 }
 
-import_sequoia_key() {
-  local key_file="$1"
-  sq key import "$key_file" >&2
-}
-
 write_outputs() {
   local fingerprint="$1"
 
@@ -295,7 +290,7 @@ main() {
 
   local fingerprint
   fingerprint="$(import_gpg_key "$key_file")"
-  import_sequoia_key "$key_file"
+  sq key import "$key_file" >&2
 
   if [[ "$RPMKEYS_IMPORT" == true ]]; then
     gpg --batch --armor --export "$fingerprint" | rpmkeys --import -

@@ -110,20 +110,27 @@ run_case() {
   echo "PASS $name"
 }
 
+signature_line() {
+  local version="$1"
+  local key_field="$2"
+  local key_value="$3"
+  printf '/tmp/test.rpm:\n    Header OpenPGP V%s RSA/SHA512 signature, %s %s: OK' \
+    "$version" "$key_field" "$key_value"
+}
+
 run_case full-fingerprint-match pass "$fingerprint_line"
-run_case long-key-id-suffix-match pass "$(printf '/tmp/test.rpm:\n    Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: %s: OK' "${GPG_KEY: -16}")"
-run_case short-key-id-suffix-match pass "$(printf '/tmp/test.rpm:\n    Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: %s: OK' "${GPG_KEY: -8}")"
-run_case key-id-field-match pass "$(printf '/tmp/test.rpm:\n    Header OpenPGP V4 RSA/SHA512 signature, Key ID %s: OK' "${GPG_KEY: -16}")"
+run_case long-key-id-suffix-match pass "$(signature_line 4 'key fingerprint:' "${GPG_KEY: -16}")"
+run_case short-key-id-suffix-match pass "$(signature_line 4 'key fingerprint:' "${GPG_KEY: -8}")"
+run_case key-id-field-match pass "$(signature_line 4 'Key ID' "${GPG_KEY: -16}")"
 export GPG_KEY="${GPG_KEY: -16}"
 run_case long-key-id-input-matches-full-fingerprint pass "$fingerprint_line"
 export GPG_KEY="${GPG_KEY: -8}"
 run_case short-key-id-input-matches-full-fingerprint pass "$fingerprint_line"
 export GPG_KEY=0123456789ABCDEF0123456789ABCDEF01234567
-run_case wrong-full-fingerprint fail "$(printf '%s' '/tmp/test.rpm:
-    Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: ffffffffffffffffffffffffffffffffffffffff: OK')"
+run_case wrong-full-fingerprint fail "$(signature_line 4 'key fingerprint:' ffffffffffffffffffffffffffffffffffffffff)"
 
 export GPG_KEY="$v6_fingerprint"
-v6_fingerprint_line="$(printf '/tmp/test.rpm:\n    Header OpenPGP V6 RSA/SHA512 signature, key fingerprint: %s: OK' "$v6_fingerprint")"
+v6_fingerprint_line="$(signature_line 6 'key fingerprint:' "$v6_fingerprint")"
 run_case v6-full-fingerprint-match pass "$v6_fingerprint_line"
 export GPG_KEY="${v6_fingerprint:0:16}"
 run_case v6-long-key-id-matches-fingerprint-prefix pass "$v6_fingerprint_line"
@@ -134,15 +141,15 @@ run_case v6-short-key-id-wrong-prefix-rejected fail "$v6_fingerprint_line"
 export GPG_KEY="${v6_fingerprint: -16}"
 run_case v6-low-order-key-id-does-not-match-fingerprint fail "$v6_fingerprint_line"
 export GPG_KEY="$v6_fingerprint"
-run_case v6-fingerprint-matches-explicit-key-id pass "$(printf '/tmp/test.rpm:\n    Header OpenPGP V6 RSA/SHA512 signature, Key ID %s: OK' "${v6_fingerprint:0:16}")"
+run_case v6-fingerprint-matches-explicit-key-id pass "$(signature_line 6 'Key ID' "${v6_fingerprint:0:16}")"
 export GPG_KEY="${v6_fingerprint:0:16}"
-run_case v6-long-key-id-matches-short-key-id pass "$(printf '/tmp/test.rpm:\n    Header OpenPGP V6 RSA/SHA512 signature, Key ID %s: OK' "${v6_fingerprint:8:8}")"
+run_case v6-long-key-id-matches-short-key-id pass "$(signature_line 6 'Key ID' "${v6_fingerprint:8:8}")"
 
 v3_fingerprint=0123456789ABCDEF0123456789ABCDEF
 export GPG_KEY="$v3_fingerprint"
-run_case v3-full-fingerprint-matches-exactly pass "$(printf '/tmp/test.rpm:\n    Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: %s: OK' "$v3_fingerprint")"
+run_case v3-full-fingerprint-matches-exactly pass "$(signature_line 4 'key fingerprint:' "$v3_fingerprint")"
 export GPG_KEY="${v3_fingerprint: -8}"
-run_case v3-fingerprint-does-not-imply-key-id fail "$(printf '/tmp/test.rpm:\n    Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: %s: OK' "$v3_fingerprint")"
+run_case v3-fingerprint-does-not-imply-key-id fail "$(signature_line 4 'key fingerprint:' "$v3_fingerprint")"
 
 export GPG_KEY=89ABCDEF
 run_case short-key-id-middle-collision fail "$(printf '%s' '/tmp/test.rpm:
@@ -193,10 +200,6 @@ export RPMKEYS_OUTPUT RETRY_OUTPUT
 export RPMKEYS_RC=1 RETRY_SIGN_RC=1
 if "$script" --dir "$rpm_dir" --gpg-key "$GPG_KEY" --retry 1 --retry-sleep 0 >/dev/null 2>&1; then
   echo 'FAIL retry-with-nonzero-rpmsign accepted failed rpmkeys verification' >&2
-  exit 1
-fi
-if [[ $(cat "$MOCK_VERIFY_COUNT") != 2 ]]; then
-  echo 'FAIL retry path did not verify both the initial and retried package' >&2
   exit 1
 fi
 if [[ $(cat "$MOCK_SIGN_COUNT") != 2 || $(cat "$MOCK_VERIFY_COUNT") != 2 ]]; then
