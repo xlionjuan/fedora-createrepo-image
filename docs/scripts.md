@@ -456,11 +456,11 @@ Functional testing should use a throwaway OpenPGP key imported into a throwaway 
 
 ### `xlion-repo-rpm-sign-packages`
 
-`xlion-repo-rpm-sign-packages` signs `.rpm` files in one or more directories with Sequoia's `sq` backend, verifies the resulting signatures with `rpmkeys -Kv`, and retries signing when verification fails. A package is accepted only when one `rpmkeys -Kv` signature line contains the requested `--gpg-key`, a supported RPM v4 signing algorithm (`RSA`, `DSA`, `ECDSA`, or `EdDSA`), and `OK`; this is the signing-algorithm compatibility gate.
+`xlion-repo-rpm-sign-packages` signs `.rpm` files in one or more directories with Sequoia's `sq` backend, verifies the resulting signatures with `rpmkeys -Kv`, and retries signing when verification fails. It captures each `rpmkeys -Kv` result once and rejects any non-zero exit or reported `BAD`/`NOT OK` result. A package is accepted only when a signature line reports `OK`, includes the requested key in its explicit fingerprint or key ID field, and uses a supported RPM v4 signing algorithm (`RSA`, `DSA`, `ECDSA`, or `EdDSA`); this is the signing-algorithm compatibility gate.
 
 Signing uses the Sequoia `sq` backend and RPM 6's `--rpmv4 --rpmv6` options to request both RPM signature formats, including during retries. The signing key must already be imported into sq, and `SEQUOIA_HOME` must point to that key store when it is not the default. The `--gpg-key` value should be an OpenPGP key ID or fingerprint; a full fingerprint is recommended.
 
-RPM v4 compatibility requires a signing algorithm supported by RPM v4. The helper uses the matching `rpmkeys -Kv` signature algorithm token as this compatibility gate and rejects other algorithms, such as ML-DSA. `rpmsign --rpmv4 --rpmv6` remains responsible for RPM v4 and v6 signature storage.
+RPM v4 compatibility requires a signing algorithm supported by RPM v4. The helper uses the matching `rpmkeys -Kv` signature algorithm token as this compatibility gate and rejects other algorithms, such as ML-DSA. Key matching is case-insensitive and exact. It accepts full fingerprint equality; it derives a 16-hex-character key ID from a v4 fingerprint's final 64 bits or a v6 fingerprint's first 64 bits. An 8-hex-character legacy ID matches the final eight characters of that 16-character key ID. A v3 fingerprint is matched only in full because its key ID comes from the RSA modulus. `rpmsign --rpmv4 --rpmv6` remains responsible for RPM v4 and v6 signature storage.
 
 RustDesk RPM-style usage:
 
@@ -493,9 +493,9 @@ What this script owns:
 
 - collecting direct child `.rpm` files from one or more directories
 - signing each RPM with `rpmsign --key-id --rpmv4 --rpmv6` using sq
-- requiring a matching `rpmkeys -Kv` signature line for the requested key with an RPM v4-supported algorithm (`RSA`, `DSA`, `ECDSA`, or `EdDSA`)
+- requiring successful overall `rpmkeys -Kv` verification and a matching signature line for the requested key with an RPM v4-supported algorithm (`RSA`, `DSA`, `ECDSA`, or `EdDSA`)
 - verifying signatures with `rpmkeys -Kv`
-- checking that `rpmkeys -Kv` output contains the requested `--gpg-key`
+- checking that the signature line's explicit fingerprint or key ID field matches the requested `--gpg-key`
 - retrying signing when verification fails
 - checking that `find`, `rpmkeys`, `rpmsign`, `sleep`, `sort`, and `sq` are available
 
@@ -512,7 +512,10 @@ Minimum tests:
 ```bash
 bash -n scripts/xlion-repo-rpm-sign-packages
 scripts/xlion-repo-rpm-sign-packages --help
+tests/test-rpm-sign-packages.sh
 ```
+
+The regression test runs the public CLI with temporary controlled `rpmkeys`, `rpmsign`, and `sq` commands in a temporary directory. It covers v3/v4/v6 fingerprint and key ID matching, key ID collisions, unsupported algorithms, failed verifier output/status, payload digest failures, invalid-key rejection before signing, and the retry path; all fixtures are removed when it exits.
 
 Keep RPM package signing sequential unless there is a proven need to parallelize; signing is more sensitive to concurrent access than metadata generation.
 
