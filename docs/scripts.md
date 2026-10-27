@@ -8,6 +8,15 @@ The scripts should stay small. They should wrap one clear responsibility, expose
 
 ## General Design
 
+### CLI Conventions
+
+- Use Bash for small orchestration around existing CLI tools.
+- Start scripts with `#!/bin/bash` and `set -euo pipefail` unless there is a concrete reason to use something else.
+- Keep option names descriptive and stable; let callers supply environment variable names, such as `--key-env GPG_PRIVATE_KEY`.
+- Validate required dependencies near startup and report missing tools clearly.
+- Validate required inputs before network requests, signing, or destructive file operations.
+- Prefer explicit arguments for caller-specific behavior.
+
 ### Keep Scripts Focused
 
 Each script should have one main job.
@@ -72,6 +81,14 @@ Temporary state should have an obvious owner.
 
 For GPG, `GNUPGHOME` must remain available to later steps that run `gpg` or `aptly`. RPM signing and RPM repository metadata signing use Sequoia, so `SEQUOIA_HOME` must remain available to later steps that run `sq` or the `rpmsign` sq backend. `xlion-repo-gpg-import` may create both homes, but it intentionally does not delete either one. With `--github-env`, it writes the paths to `$GITHUB_ENV`; GitHub Actions makes them available to subsequent steps. The workflow should remove both homes in an `if: always()` cleanup step after signing and publishing are finished.
 
+## Validation Requirements
+
+For every changed Bash script, run `bash -n scripts/SCRIPT_NAME` and `scripts/SCRIPT_NAME --help`. Each script reference below lists its minimum commands and practical functional checks.
+
+Use temporary local keys and packages for functional tests. Verify behavior without real signing secrets or repository publishing. For key import, confirm the fingerprint on stdout, private-key availability in both stores, and the documented GitHub environment/output entries. Keep the generated homes available for subsequent signing checks; the caller owns cleanup.
+
+When adding or changing a script, update its reference here with its purpose, ownership boundaries, common examples, and minimum test commands.
+
 ## Script Reference
 
 ### `xlion-repo-utils-gh`
@@ -101,6 +118,8 @@ Fetch mode writes:
 - `api.json`
 - `dl_urls.txt`
 - `sha256.txt` when release asset digests are available
+
+Verify mode reads `sha256.txt` from the workfolder, checks only files actually downloaded there, and fails if any downloaded file has a checksum mismatch.
 
 Typical caller flow:
 
@@ -495,7 +514,9 @@ bash -n scripts/xlion-repo-rpm-sign-packages
 scripts/xlion-repo-rpm-sign-packages --help
 ```
 
-Functional testing should use a throwaway RPM and a throwaway RSA signing key. Import the private key into sq and the public key into rpmkeys before running this helper, then confirm `rpmkeys -Kv` reports the expected key with a supported algorithm and `OK` status and the helper accepts it. Test a key whose matching output has an unsupported algorithm such as ML-DSA and confirm that the helper rejects it. Also reject a supported algorithm with the wrong fingerprint or a `NOT OK` status. RPM v4 supports RSA, DSA, ECDSA, and EdDSA signing keys; `rpmsign --rpmv4 --rpmv6` remains responsible for signature storage.
+Keep RPM package signing sequential unless there is a proven need to parallelize; signing is more sensitive to concurrent access than metadata generation.
+
+Functional testing should use a throwaway RPM and a throwaway RSA signing key. Import the private key into sq and the public key into rpmkeys before running this helper, then confirm `rpmkeys -Kv` reports the expected key with a supported algorithm and `OK` status and the helper accepts it. Test a key whose matching output has an unsupported algorithm such as ML-DSA and confirm that the helper rejects it. Also reject a supported algorithm with the wrong fingerprint or a `NOT OK` status. Exercise each of the RPM v4-supported signing algorithms (RSA, DSA, ECDSA, and EdDSA) where available; `rpmsign --rpmv4 --rpmv6` remains responsible for signature storage.
 
 ## Adding a New Script
 
