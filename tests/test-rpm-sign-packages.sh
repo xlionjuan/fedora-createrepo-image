@@ -17,6 +17,7 @@ count=0
 [[ -f "$MOCK_SIGN_COUNT" ]] && read -r count < "$MOCK_SIGN_COUNT"
 count=$((count + 1))
 printf '%s\n' "$count" > "$MOCK_SIGN_COUNT"
+printf '%s\n' "$@" > "$MOCK_SIGN_ARGS.$count"
 if (( count > 1 )) && [[ ${RETRY_SIGN_RC:-0} != 0 ]]; then
   exit "$RETRY_SIGN_RC"
 fi
@@ -45,6 +46,7 @@ chmod +x "$bin_dir"/*
 
 export PATH="$bin_dir:$PATH"
 export MOCK_SIGN_COUNT="$tmp_dir/sign.count"
+export MOCK_SIGN_ARGS="$tmp_dir/sign.args"
 export MOCK_VERIFY_COUNT="$tmp_dir/verify.count"
 export GPG_KEY=0123456789ABCDEF0123456789ABCDEF01234567
 v6_fingerprint=1122334455667788AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFEDCBA9876543210
@@ -53,9 +55,38 @@ fingerprint_line="/tmp/test.rpm:
     Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: ${GPG_KEY,,}: OK
     Payload SHA256 digest: OK"
 
+assert_sign_args() {
+  local call="$1"
+  local -a expected_args=(
+    --define '_openpgp_sign sq'
+    --key-id "$GPG_KEY"
+    --rpmv4
+    --rpmv6
+    --addsign
+    "$rpm_dir/test.rpm"
+  )
+  local -a actual_args=()
+
+  if [[ ! -f "$MOCK_SIGN_ARGS.$call" ]]; then
+    echo "FAIL missing rpmsign argument capture for call $call" >&2
+    return 1
+  fi
+  mapfile -t actual_args < "$MOCK_SIGN_ARGS.$call"
+  if [[ ${#actual_args[@]} -ne ${#expected_args[@]} ]]; then
+    echo "FAIL rpmsign call $call received ${#actual_args[@]} arguments, expected ${#expected_args[@]}" >&2
+    return 1
+  fi
+  for i in "${!expected_args[@]}"; do
+    if [[ "${actual_args[$i]}" != "${expected_args[$i]}" ]]; then
+      echo "FAIL rpmsign call $call argument $((i + 1)): got '${actual_args[$i]}', expected '${expected_args[$i]}'" >&2
+      return 1
+    fi
+  done
+}
+
 run_case() {
   local name="$1" expected="$2" output="$3" rc="${4:-0}"
-  rm -f "$MOCK_SIGN_COUNT" "$MOCK_VERIFY_COUNT"
+  rm -f "$MOCK_SIGN_COUNT" "$MOCK_VERIFY_COUNT" "$MOCK_SIGN_ARGS".*
   export RPMKEYS_OUTPUT="$output" RPMKEYS_RC="$rc"
   export RETRY_SIGN_RC=0 RETRY_OUTPUT=
 
@@ -71,6 +102,11 @@ run_case() {
     echo "FAIL $name expected one rpmkeys invocation" >&2
     return 1
   fi
+  if [[ $(cat "$MOCK_SIGN_COUNT") != 1 ]]; then
+    echo "FAIL $name expected one rpmsign invocation" >&2
+    return 1
+  fi
+  assert_sign_args 1
   echo "PASS $name"
 }
 
@@ -120,7 +156,7 @@ run_case unsupported-ml-dsa fail "$(printf '%b' "/tmp/test.rpm:\n    Header Open
 run_case rpmkeys-nonzero-exit fail "$fingerprint_line" 1
 run_case payload-bad fail "$(printf '%b' "$fingerprint_line\n    Payload SHA256 digest: BAD (corrupt)")"
 
-rm -f "$MOCK_SIGN_COUNT" "$MOCK_VERIFY_COUNT"
+rm -f "$MOCK_SIGN_COUNT" "$MOCK_VERIFY_COUNT" "$MOCK_SIGN_ARGS".*
 if "$script" --dir "$rpm_dir" --gpg-key 'not-a-hex-key' --retry 0 --retry-sleep 0 >/dev/null 2>&1; then
   echo 'FAIL invalid-key was accepted' >&2
   exit 1
@@ -131,7 +167,7 @@ if [[ -e "$MOCK_SIGN_COUNT" || -e "$MOCK_VERIFY_COUNT" ]]; then
 fi
 echo 'PASS invalid-key-rejected-before-rpmsign'
 
-rm -f "$MOCK_SIGN_COUNT" "$MOCK_VERIFY_COUNT"
+rm -f "$MOCK_SIGN_COUNT" "$MOCK_VERIFY_COUNT" "$MOCK_SIGN_ARGS".*
 RPMKEYS_OUTPUT="$(printf '%s' '/tmp/test.rpm:
     Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: ffffffffffffffffffffffffffffffffffffffff: OK')"
 RETRY_OUTPUT="$fingerprint_line"
@@ -145,9 +181,11 @@ if [[ $(cat "$MOCK_SIGN_COUNT") != 2 || $(cat "$MOCK_VERIFY_COUNT") != 2 ]]; the
   echo 'FAIL successful retry path did not sign and verify twice' >&2
   exit 1
 fi
+assert_sign_args 1
+assert_sign_args 2
 echo 'PASS retry-with-nonzero-rpmsign-accepts-verified-package'
 
-rm -f "$MOCK_SIGN_COUNT" "$MOCK_VERIFY_COUNT"
+rm -f "$MOCK_SIGN_COUNT" "$MOCK_VERIFY_COUNT" "$MOCK_SIGN_ARGS".*
 RPMKEYS_OUTPUT="$(printf '%s' '/tmp/test.rpm:
     Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: ffffffffffffffffffffffffffffffffffffffff: OK')"
 RETRY_OUTPUT="$(printf '%b' "$fingerprint_line\n    Payload SHA256 digest: BAD (corrupt)")"
@@ -161,4 +199,10 @@ if [[ $(cat "$MOCK_VERIFY_COUNT") != 2 ]]; then
   echo 'FAIL retry path did not verify both the initial and retried package' >&2
   exit 1
 fi
+if [[ $(cat "$MOCK_SIGN_COUNT") != 2 || $(cat "$MOCK_VERIFY_COUNT") != 2 ]]; then
+  echo 'FAIL failed retry path did not sign and verify twice' >&2
+  exit 1
+fi
+assert_sign_args 1
+assert_sign_args 2
 echo 'PASS retry-with-nonzero-rpmsign-fails-closed'

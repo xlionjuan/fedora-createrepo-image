@@ -268,7 +268,7 @@ verify_or_retry() {
   while ((attempt <= RETRY)); do
     warn "Retry $attempt/$RETRY: $rpm_file"
 
-    if ! rpmsign --define '_openpgp_sign sq' --key-id "$GPG_KEY" --rpmv4 --rpmv6 --addsign "$rpm_file"; then
+    if ! sign_rpm "$rpm_file"; then
       warn "rpmsign returned non-zero, re-checking signature anyway."
     fi
 
