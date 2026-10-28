@@ -42,7 +42,7 @@ Usage:
 
 Options:
   --dir DIR             Directory containing .rpm packages. Can be repeated.
-  --gpg-key KEY         GPG key identifier, key ID, or fingerprint used for signing and verification.
+  --gpg-key KEY         Hex OpenPGP key ID (8/16 hex digits) or fingerprint (32/40/64 hex digits).
   --retry COUNT         Retry count when signature verification fails. Default: 3.
   --retry-sleep SEC     Seconds to sleep between retries. Default: 2.
   -h, --help            Show this help message.
@@ -52,7 +52,12 @@ Examples:
 
 Notes:
   - RPM packages are signed sequentially, not concurrently.
-  - This tool expects the GPG key to already be imported.
+  - Signing uses sq and requests both RPM v4 and v6 signature formats.
+  - rpmkeys -Kv must exit successfully, with no BAD or NOT OK result.
+  - A signature line must report : OK, a supported RPM v4 algorithm (RSA, DSA, ECDSA, or EdDSA), and the key in its explicit fingerprint/key ID field.
+  - v4 key IDs use the final 16 fingerprint digits; v6 key IDs use the first 16. An 8-digit ID matches the final 8 digits of a 16-digit ID; v3 fingerprints match only exactly.
+  - RPM v4 and v6 signature storage remains delegated to rpmsign.
+  - This tool expects the signing key to already be imported into sq.
   - This tool expects the public key to already be imported into rpmkeys.
   - Logs are printed to stderr.
 EOF
@@ -149,35 +154,102 @@ collect_rpms() {
 
 has_signature() {
   local rpm_file="$1"
-  local first_line=1
+  local output
+  local rpmkeys_status=0
   local key_lc="${GPG_KEY,,}"
   local line
   local line_lc
+  local signature_key
+  local has_matching_signature=0
 
   echo "== rpmkeys output for $rpm_file ==" >&2
-  rpmkeys -Kv "$rpm_file" >&2
+  if output="$(rpmkeys -Kv "$rpm_file" 2>&1)"; then
+    rpmkeys_status=0
+  else
+    rpmkeys_status=$?
+  fi
+  printf '%s\n' "$output" >&2
   echo "== end ==" >&2
 
+  if (( rpmkeys_status != 0 )); then
+    warn "rpmkeys verification failed with exit status $rpmkeys_status."
+    return 1
+  fi
+
   while IFS= read -r line; do
-    if (( first_line )); then
-      first_line=0
+    line_lc="${line,,}"
+    if [[ "$line_lc" =~ :[[:space:]]*(bad|not[[:space:]]+ok)([[:space:]]|$) ]]; then
+      warn "rpmkeys reported a failed verification result."
+      return 1
+    fi
+
+    if [[ "$line_lc" != *signature* ||
+      ! "$line_lc" =~ (^|[[:space:]])(rsa|dsa|ecdsa|eddsa)(/|[[:space:]]) ||
+      ! "$line_lc" =~ :[[:space:]]*ok([[:space:]]|$) ]]; then
       continue
     fi
 
-    line_lc="${line,,}"
-    if [[ "$line_lc" == *signature* && "$line_lc" == *"$key_lc"* && "$line_lc" == *": ok"* ]]; then
-      return 0
+    signature_key=""
+    if [[ "$line_lc" =~ key[[:space:]]fingerprint:[[:space:]]*([[:xdigit:]]+) ]]; then
+      signature_key="${BASH_REMATCH[1]}"
+    elif [[ "$line_lc" =~ key[[:space:]]id[[:space:]]*:?[[:space:]]*([[:xdigit:]]+) ]]; then
+      signature_key="${BASH_REMATCH[1]}"
     fi
-  done < <(rpmkeys -Kv "$rpm_file" 2>/dev/null)
+    [[ -n "$signature_key" ]] || continue
+    if [[ ! "$signature_key" =~ ^([[:xdigit:]]{8}|[[:xdigit:]]{16}|[[:xdigit:]]{32}|[[:xdigit:]]{40}|[[:xdigit:]]{64})$ ]]; then
+      continue
+    fi
 
-  return 1
+    if signature_key_matches "$key_lc" "$signature_key"; then
+      has_matching_signature=1
+    fi
+  done <<< "$output"
+
+  (( has_matching_signature ))
+}
+
+signature_key_matches() {
+  local requested="$1"
+  local reported="$2"
+  local requested_len=${#requested}
+  local reported_len=${#reported}
+  local requested_key_id
+  local reported_key_id
+
+  [[ "$requested" == "$reported" ]] && return 0
+
+  if [[ "$requested_len" =~ ^(32|40|64)$ && "$reported_len" =~ ^(32|40|64)$ ]]; then
+    return 1
+  fi
+
+  case "$requested_len" in
+    8 | 16) requested_key_id="$requested" ;;
+    40) requested_key_id="${requested: -16}" ;;
+    64) requested_key_id="${requested:0:16}" ;;
+    *) return 1 ;;
+  esac
+
+  case "$reported_len" in
+    8 | 16) reported_key_id="$reported" ;;
+    40) reported_key_id="${reported: -16}" ;;
+    64) reported_key_id="${reported:0:16}" ;;
+    *) return 1 ;;
+  esac
+
+  if [[ ${#requested_key_id} -eq 16 && ${#reported_key_id} -eq 8 ]]; then
+    [[ "$requested_key_id" == *"$reported_key_id" ]]
+  elif [[ ${#requested_key_id} -eq 8 && ${#reported_key_id} -eq 16 ]]; then
+    [[ "$reported_key_id" == *"$requested_key_id" ]]
+  else
+    [[ "$requested_key_id" == "$reported_key_id" ]]
+  fi
 }
 
 sign_rpm() {
   local rpm_file="$1"
 
   info "Signing: $rpm_file"
-  rpmsign --key-id "$GPG_KEY" --addsign "$rpm_file"
+  rpmsign --define '_openpgp_sign sq' --key-id "$GPG_KEY" --rpmv4 --rpmv6 --addsign "$rpm_file"
 }
 
 verify_or_retry() {
@@ -196,7 +268,7 @@ verify_or_retry() {
   while ((attempt <= RETRY)); do
     warn "Retry $attempt/$RETRY: $rpm_file"
 
-    if ! rpmsign --key-id "$GPG_KEY" --addsign "$rpm_file"; then
+    if ! sign_rpm "$rpm_file"; then
       warn "rpmsign returned non-zero, re-checking signature anyway."
     fi
 
@@ -216,7 +288,7 @@ verify_or_retry() {
 
 main() {
   parse_args "$@"
-  check_dependencies find rpmkeys rpmsign sleep sort
+  check_dependencies find rpmkeys rpmsign sleep sort sq
 
   if [[ ${#DIRS[@]} -eq 0 ]]; then
     error "At least one --dir is required."
@@ -224,6 +296,9 @@ main() {
 
   if [[ -z "$GPG_KEY" ]]; then
     error "Option --gpg-key is required."
+  fi
+  if [[ ! "${GPG_KEY,,}" =~ ^([[:xdigit:]]{8}|[[:xdigit:]]{16}|[[:xdigit:]]{32}|[[:xdigit:]]{40}|[[:xdigit:]]{64})$ ]]; then
+    error "Option --gpg-key must be an OpenPGP key ID or fingerprint in hexadecimal form."
   fi
 
   mapfile -t rpm_files < <(collect_rpms)

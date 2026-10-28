@@ -2,211 +2,25 @@
 
 ## Scope
 
-This repository builds the container image used by the Linux package repository workflows. The most important maintained interface is the set of executable scripts under `scripts/`; `Dockerfile` copies every file from `scripts/` into `/usr/bin`.
+This repository builds the container image used by Linux package repository workflows. Executable scripts under `scripts/` are public CI tools installed into the image's PATH.
 
-Treat scripts as public CI tools. Other repositories may call them directly from GitHub Actions, so changes should be small, explicit, and backward-compatible unless a caller migration is part of the same change.
+Preserve compatibility with downstream workflows unless a coordinated caller migration is part of the change.
 
-## Script Design Rules
+## Script Development and Validation
 
-- Use Bash for small CLI orchestration around existing tools such as `gpg`, `gh`, `jq`, `curl`, `wget2`, `fpm`, `aptly`, `rpmkeys`, and `createrepo_c`.
-- Start scripts with `#!/bin/bash` and `set -euo pipefail` unless there is a concrete reason not to.
-- Keep stdout machine-readable when the script is commonly used in command substitution. Send logs, warnings, and errors to stderr.
-- Do not print secrets, private keys, tokens, or full secret-derived command lines.
-- Keep option names descriptive and stable. Prefer `--key-env GPG_PRIVATE_KEY` over hard-coding secret environment variable names.
-- Validate required dependencies near the start and fail with a clear message.
-- Validate required inputs before doing network, signing, or destructive file operations.
-- Prefer explicit arguments over hidden repository-specific behavior.
-- Do not make generic scripts understand every product-specific rule. Keep product-specific asset filtering in the calling workflow when plain shell is clearer.
-- Do not delete state that later workflow steps need. For example, `xlion-repo-gpg-import` must not delete `GNUPGHOME` after importing a key.
+Before adding, changing, or reviewing a script, read the authoritative script manual, [docs/scripts.md](docs/scripts.md), for design rules, ownership boundaries, usage examples, and required checks. Read the general guidance and the reference sections for each affected script.
 
-## Current Scripts
+When changing the container's installed tools or runtime environment, also read that document's Container Integration section and the references for scripts that depend on those tools.
 
-### `xlion-repo-utils-gh`
+## Downstream Compatibility
 
-Purpose: fetch GitHub release metadata, write release asset URLs to `dl_urls.txt`, write SHA256 data to `sha256.txt` when GitHub exposes asset digests, and verify downloaded files against that checksum file.
+The following repositories depend on this image and its CI tools:
 
-Design intent: this script owns GitHub release API interaction and checksum verification. It does not decide which assets a package repo should download. Callers can keep simple and readable filtering such as `grep '\.deb'`, `grep x86_64`, or `grep -v sciter` in their own workflow.
+- [rustdesk-apt-repo-latest](https://github.com/xlionjuan/rustdesk-apt-repo-latest)
+- [rustdesk-apt-repo-nightly](https://github.com/xlionjuan/rustdesk-apt-repo-nightly)
+- [rustdesk-rpm-repo](https://github.com/xlionjuan/rustdesk-rpm-repo)
+- [ntpd-rs-repos](https://github.com/xlionjuan/ntpd-rs-repos)
 
-Expected outputs in fetch mode:
+For API/ABI or other compatibility-sensitive changes, inspect the callers in all four repositories to identify affected workflows. This includes script names and flags, stdout formats, exit statuses, environment variables, generated files, signing/key-store behavior, and installed tool versions or backends.
 
-- `api.json`
-- `dl_urls.txt`
-- `sha256.txt` when digest data exists
-
-Expected behavior in verify mode:
-
-- Read `sha256.txt` from the workfolder.
-- Verify only files that were actually downloaded into the workfolder.
-- Fail if any downloaded file has a checksum mismatch.
-
-### `xlion-repo-gpg-import`
-
-Purpose: import a GPG private key into `GNUPGHOME`, report the imported fingerprint, and optionally export that fingerprint to GitHub Actions environment or output files.
-
-Design intent: this script only prepares GPG key state. It must not publish repositories, sign packages, run `aptly`, run `rpmsign`, or clean up `GNUPGHOME`.
-
-Common GitHub Actions usage:
-
-```bash
-xlion-repo-gpg-import \
-  --key-env GPG_PRIVATE_KEY \
-  --create-gnupghome \
-  --github-env \
-  --name GPG_FINGERPRINT
-```
-
-RPM workflows can also import the public key into rpm's key database:
-
-```bash
-xlion-repo-gpg-import \
-  --key-env GPG_PRIVATE_KEY \
-  --create-gnupghome \
-  --github-env \
-  --name GPG_FINGERPRINT \
-  --rpmkeys-import
-```
-
-Expected output behavior:
-
-- stdout prints only the fingerprint.
-- logs and errors go to stderr.
-- `--github-env` writes the fingerprint to `$GITHUB_ENV`.
-- `--create-gnupghome --github-env` also writes `GNUPGHOME=...` and `GPG_TTY=` to `$GITHUB_ENV`.
-
-### `xlion-repo-repackage-deb`
-
-Purpose: repackage `.deb` files with `fpm`, optionally appending a date suffix to the original package version and adding Debian `Recommends` metadata.
-
-Design intent: this script owns repeatable DEB repackaging mechanics only. It must not download release assets, create APT metadata, import signing keys, or publish repositories.
-
-Common usage:
-
-```bash
-xlion-repo-repackage-deb \
-  --source-dir ori \
-  --target-dir . \
-  --deb-recommends xlion-repo-archive-keyring \
-  --remove-source-dir
-```
-
-Nightly/date-version usage:
-
-```bash
-xlion-repo-repackage-deb \
-  --source-dir ori \
-  --target-dir . \
-  --date-version \
-  --deb-recommends xlion-repo-archive-keyring \
-  --remove-source-dir
-```
-
-### `xlion-repo-repackage-rpm`
-
-Purpose: repackage `.rpm` files with `fpm`, optionally appending a date suffix to the original package version.
-
-Design intent: this script owns repeatable RPM repackaging mechanics only. It must not split product-specific RPM layouts, create `createrepo_c` metadata, import signing keys, or sign packages.
-
-Common usage:
-
-```bash
-xlion-repo-repackage-rpm --source-dir wwwroot/latest/ori --remove-source-dir
-```
-
-Nightly/date-version usage:
-
-```bash
-xlion-repo-repackage-rpm --source-dir wwwroot/nightly/ori --date-version --remove-source-dir
-```
-
-### `xlion-repo-rpm-createrepo`
-
-Purpose: run `createrepo_c` for one or more RPM repository directories.
-
-Design intent: this script owns the concurrent multi-directory `createrepo_c` loop only. It must not sign RPM packages, sign `repomd.xml`, or decide product-specific directory layouts.
-
-Common usage:
-
-```bash
-xlion-repo-rpm-createrepo \
-  --dir wwwroot/latest \
-  --dir wwwroot/latest-suse \
-  --dir wwwroot/nightly \
-  --dir wwwroot/nightly-suse
-```
-
-### `xlion-repo-rpm-sign-repomd`
-
-Purpose: sign `repodata/repomd.xml` for one or more RPM repository directories.
-
-Design intent: this script owns the concurrent multi-directory `gpg --detach-sign --armor` loop only. It takes a clear `--gpg-key` argument and internally passes that value to `gpg --local-user`.
-
-Common usage:
-
-```bash
-xlion-repo-rpm-sign-repomd \
-  --dir wwwroot/latest \
-  --dir wwwroot/nightly \
-  --gpg-key "$GPG_FINGERPRINT"
-```
-
-### `xlion-repo-rpm-sign-packages`
-
-Purpose: sign `.rpm` packages and verify signatures with `rpmkeys`.
-
-Design intent: this script owns RPM package signing, fingerprint verification, and retry logic. It must not import GPG keys, create RPM repository metadata, or sign `repomd.xml`.
-
-Common usage:
-
-```bash
-xlion-repo-rpm-sign-packages \
-  --dir wwwroot/latest \
-  --dir wwwroot/nightly \
-  --gpg-key "$GPG_FINGERPRINT"
-```
-
-Keep signing sequential unless there is a proven need to parallelize. GPG/rpmsign behavior is more sensitive than metadata generation.
-
-## Testing Requirements
-
-Run at least syntax checks for every changed Bash script:
-
-```bash
-bash -n scripts/xlion-repo-utils-gh
-bash -n scripts/xlion-repo-gpg-import
-bash -n scripts/xlion-repo-repackage-deb
-bash -n scripts/xlion-repo-repackage-rpm
-bash -n scripts/xlion-repo-rpm-createrepo
-bash -n scripts/xlion-repo-rpm-sign-repomd
-bash -n scripts/xlion-repo-rpm-sign-packages
-```
-
-For scripts with CLI help, verify help still renders:
-
-```bash
-scripts/xlion-repo-utils-gh --help
-scripts/xlion-repo-gpg-import --help
-scripts/xlion-repo-repackage-deb --help
-scripts/xlion-repo-repackage-rpm --help
-scripts/xlion-repo-rpm-createrepo --help
-scripts/xlion-repo-rpm-sign-repomd --help
-scripts/xlion-repo-rpm-sign-packages --help
-```
-
-For `xlion-repo-gpg-import`, test with a temporary local GPG key instead of real secrets. The test should confirm that:
-
-- a fingerprint is printed to stdout
-- a secret key exists in the target `GNUPGHOME`
-- `--create-gnupghome --github-env` writes `GNUPGHOME`, `GPG_TTY=`, and `GPG_FINGERPRINT`
-
-Avoid tests that require real signing keys or real repository publishing.
-
-## Documentation
-
-When adding or changing a script, update `docs/scripts.md` with:
-
-- the script's purpose
-- what it owns and what it intentionally does not own
-- common examples
-- minimum test commands
-
-Keep documentation plain and practical. The primary reader is someone editing CI scripts under time pressure.
+For each affected workflow, either preserve its existing contract or coordinate the downstream update with this change. Validate the image/scripts together with the affected caller flows, using throwaway packages and keys for signing checks. Before merge, record which downstream callers were checked, any required companion changes, the validation results, and any checks still blocked or pending. Local checks alone do not establish downstream compatibility.
